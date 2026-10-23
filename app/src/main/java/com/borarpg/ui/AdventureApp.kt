@@ -52,7 +52,7 @@ import com.borarpg.domain.*
                 AnimatedContent(targetState = tab, label = "Navegação") { page ->
                     when (page) {
                         0 -> Journey(state, profile.draft.name, adventure::simulate, { tab = 1 }, { tab = 3 })
-                        1 -> MapPreview()
+                        1 -> WorldMap(player)
                         2 -> Backpack(state.hero)
                         3 -> PlayerScreen(player, state.hero)
                     }
@@ -183,5 +183,3 @@ import com.borarpg.domain.*
         isError = error != null, supportingText = error?.let { { Text(it) } }, enabled = enabled,
         keyboardOptions = KeyboardOptions(keyboardType = keyboard), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth())
 }
-
-@Composable private fun MapPreview() { Text("Território em preparação.") }
