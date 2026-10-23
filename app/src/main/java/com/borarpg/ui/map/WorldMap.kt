@@ -72,7 +72,8 @@ fun WorldMap(player: PlayerViewModel) {
         locations.collectAsStateWithLifecycle(
             initialValue = GpsState(message = "Ative o GPS para acompanhar sua posição.")
         )
-    val quests by player.quests.collectAsStateWithLifecycle()
+    val savedQuests by player.quests.collectAsStateWithLifecycle()
+    val quests = (savedQuests + cep.objectives).distinctBy { it.id }
     val profile by player.profile.collectAsStateWithLifecycle()
     var filter by rememberSaveable { mutableStateOf("Todos") }
     val visible = quests.filter { filter == "Todos" || it.kind == filter }
@@ -99,6 +100,7 @@ fun WorldMap(player: PlayerViewModel) {
             recenter,
             cep.target,
             cep.revision,
+            cep.objectives,
             onGesture = { follow = false },
             onSelect = { selectedId = it },
             onLongPress = {
@@ -186,8 +188,14 @@ fun WorldMap(player: PlayerViewModel) {
             ) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (selected != null) {
-                        Eyebrow("Seu objetivo de exploração", Coral)
+                        Eyebrow(
+                            if (selected.generated) "Objetivo gerado pelo CEP"
+                            else "Seu objetivo de exploração",
+                            Coral,
+                        )
                         Text(selected.title, style = MaterialTheme.typography.titleLarge)
+                        if (selected.description.isNotBlank())
+                            Text(selected.description, color = Lime)
                         val reference =
                             cep.target?.let { LatLng(it.latitude, it.longitude) }
                                 ?: gps.location?.let { LatLng(it.latitude, it.longitude) }
@@ -211,7 +219,9 @@ fun WorldMap(player: PlayerViewModel) {
                             color = Muted,
                         )
                         Text(
-                            "Local marcado por você. Visite apenas áreas de acesso público.",
+                            if (selected.generated)
+                                "Local mapeado no OpenStreetMap. Confira o acesso e os horários no local."
+                            else "Local marcado por você. Visite apenas áreas de acesso público.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Muted,
                         )
@@ -219,11 +229,17 @@ fun WorldMap(player: PlayerViewModel) {
                             TextButton(onClick = { selectedId = null }) { Text("Fechar") }
                             TextButton(
                                 onClick = {
-                                    player.deleteQuest(selected.id)
+                                    if (savedQuests.any { it.id == selected.id })
+                                        player.deleteQuest(selected.id)
+                                    else player.addQuest(selected)
                                     selectedId = null
                                 }
                             ) {
-                                Text("Remover local")
+                                Text(
+                                    if (savedQuests.any { it.id == selected.id })
+                                        "Remover dos salvos"
+                                    else "Salvar local"
+                                )
                             }
                         }
                     } else {
@@ -242,6 +258,29 @@ fun WorldMap(player: PlayerViewModel) {
                                 color = Muted,
                                 style = MaterialTheme.typography.bodySmall,
                             )
+                            if (cep.objectivesLoading) {
+                                LinearProgressIndicator(Modifier.fillMaxWidth())
+                                Text(
+                                    "Procurando locais próximos…",
+                                    color = Muted,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            cep.objectivesMessage?.let { message ->
+                                Text(
+                                    message,
+                                    color = Muted,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            TextButton(
+                                enabled = !cep.objectivesLoading,
+                                onClick = cepViewModel::regenerateObjectives,
+                            ) {
+                                Icon(Icons.Outlined.Refresh, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Novos objetivos")
+                            }
                         }
                         Text(
                             "Toque nos pontos para explorar. Segure o mapa para marcar um objetivo pessoal.",

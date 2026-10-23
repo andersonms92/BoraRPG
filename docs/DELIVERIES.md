@@ -17,3 +17,8 @@ Os textos de commit descrevem o conteúdo entregue. Mapas e consulta de CEP prec
 
 11. Remoção dos objetivos e da posição de demonstração do mapa.
 12. Contagem real de passos durante atividades, serviço em primeiro plano e migração do progresso de teste.
+
+13. Geração aleatória de objetivos em praças, parques e áreas de lazer reais do OpenStreetMap.
+14. Integração ao CEP, novos sorteios, enquadramento dos pontos no mapa e salvamento dos objetivos.
+
+Validação da entrega 14: compilação, 17 testes e lint passaram. As consultas reais aos servidores Overpass tiveram timeout neste ambiente; a geração online de ponta a ponta ainda precisa ser confirmada com o serviço disponível.

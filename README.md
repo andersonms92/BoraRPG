@@ -28,9 +28,9 @@ Nome, peso, altura e idade são validados e salvos localmente. As medidas ainda 
 
 MapLibre Native e OpenFreeMap renderizam o mapa online. Não há pontos pré-cadastrados nem posição inicial representando o usuário. O mapa é centralizado pelo GPS ou por consulta de CEP à BrasilAPI. As coordenadas por CEP são aproximadas; a consulta pode retornar endereço sem coordenadas.
 
-Segure o mapa para salvar um objetivo pessoal; toque para consultar ou remover. A lista inicia vazia e exibe apenas locais criados pelo usuário. Os objetivos não são distribuídos por um backend e não concedem recompensas de visita.
+Segure o mapa para salvar um objetivo pessoal; toque para consultar ou remover. Ao consultar um CEP, o app sorteia até seis objetivos de exploração em locais cadastrados no OpenStreetMap, em um raio de 2 km. O botão Novos objetivos sorteia novamente entre os candidatos disponíveis, usando cache durante a sessão. Os locais gerados podem ser salvos para permanecerem após reiniciar. A consulta exclui acessos explicitamente privados ou restritos, mas os dados do mapa não garantem acesso ou horários atuais. Regiões sem cobertura e falhas de rede têm mensagens próprias. Os objetivos ainda não concedem recompensas de visita.
 
-A localização do mapa é coletada somente com a área aberta e o app em primeiro plano. O contador de passos da atividade é independente do GPS. O provedor de mapas recebe as requisições da região visualizada; a BrasilAPI recebe o CEP consultado. Não há envio do perfil para um servidor próprio.
+A localização do mapa é coletada somente com a área aberta e o app em primeiro plano. O contador de passos da atividade é independente do GPS. O provedor de mapas recebe as requisições da região visualizada; a BrasilAPI recebe o CEP consultado, e a Overpass API recebe as coordenadas da região para buscar os locais próximos. Não há envio do perfil para um servidor próprio.
 
 ## Organização
 

@@ -14,6 +14,7 @@ import com.borarpg.domain.QuestPoint
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.style.expressions.Expression
@@ -33,6 +34,7 @@ internal fun NativeWorldMap(
     recenter: Int,
     cepTarget: CepLocation?,
     cepRevision: Int,
+    cepObjectives: List<QuestPoint>,
     onGesture: () -> Unit,
     onSelect: (String) -> Unit,
     onLongPress: (LatLng) -> Unit,
@@ -251,14 +253,34 @@ internal fun NativeWorldMap(
                 )
         }
     }
-    LaunchedEffect(cepTarget, cepRevision, ready) {
-        if (ready && cepTarget != null)
+    LaunchedEffect(cepTarget, cepRevision, cepObjectives, ready) {
+        if (ready && cepTarget != null) {
+            if (cepObjectives.isNotEmpty()) {
+                val points =
+                    (cepObjectives.map { LatLng(it.latitude, it.longitude) } +
+                            LatLng(cepTarget.latitude, cepTarget.longitude))
+                        .distinct()
+                if (points.size > 1) {
+                    val bounds = LatLngBounds.Builder().includes(points).build()
+                    map?.animateCamera(
+                        CameraUpdateFactory.newLatLngBounds(
+                            bounds,
+                            (24 * density).toInt().coerceAtMost(view.width / 8),
+                            (170 * density).toInt().coerceAtMost(view.height / 4),
+                            (24 * density).toInt().coerceAtMost(view.width / 8),
+                            (350 * density).toInt().coerceAtMost(view.height / 2),
+                        )
+                    )
+                    return@LaunchedEffect
+                }
+            }
             map?.animateCamera(
                 CameraUpdateFactory.newLatLngZoom(
                     LatLng(cepTarget.latitude, cepTarget.longitude),
                     15.0,
                 )
             )
+        }
     }
     AndroidView(factory = { view }, modifier = Modifier.fillMaxSize())
 }
