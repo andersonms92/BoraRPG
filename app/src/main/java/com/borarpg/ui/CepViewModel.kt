@@ -13,28 +13,60 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class CepState(val input: String = "", val loading: Boolean = false, val error: String? = null, val target: CepLocation? = null, val revision: Int = 0)
+data class CepState(
+    val input: String = "",
+    val loading: Boolean = false,
+    val error: String? = null,
+    val target: CepLocation? = null,
+    val revision: Int = 0,
+)
 
 class CepViewModel : ViewModel() {
     private val repository = CepRepository()
     private val mutable = MutableStateFlow(CepState())
     val state = mutable.asStateFlow()
     private var request: Job? = null
-    fun edit(value: String) { if (!mutable.value.loading) mutable.update { it.copy(input = value.take(9), error = null) } }
+
+    fun edit(value: String) {
+        if (!mutable.value.loading) mutable.update { it.copy(input = value.take(9), error = null) }
+    }
+
     fun search() {
         if (mutable.value.loading) return
         val input = mutable.value.input
-        if (normalizeCep(input) == null) { mutable.update { it.copy(error = "Digite um CEP válido, como 01310-100.") }; return }
+        if (normalizeCep(input) == null) {
+            mutable.update { it.copy(error = "Digite um CEP válido, como 01310-100.") }
+            return
+        }
         request = viewModelScope.launch {
             mutable.update { it.copy(loading = true, error = null) }
             try {
                 val result = repository.find(input)
-                mutable.update { it.copy(loading = false, target = result, revision = it.revision + 1) }
-            } catch (e: CancellationException) { throw e }
-            catch (e: CepLookupException) { mutable.update { it.copy(loading = false, error = e.message) } }
-            catch (_: Exception) { mutable.update { it.copy(loading = false, error = "Não foi possível consultar o CEP. Verifique sua conexão e tente novamente.") } }
+                mutable.update {
+                    it.copy(loading = false, target = result, revision = it.revision + 1)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: CepLookupException) {
+                mutable.update { it.copy(loading = false, error = e.message) }
+            } catch (_: Exception) {
+                mutable.update {
+                    it.copy(
+                        loading = false,
+                        error =
+                            "Não foi possível consultar o CEP. Verifique sua conexão e tente novamente.",
+                    )
+                }
+            }
         }
     }
-    fun cancelSearch() { request?.cancel(); mutable.update { it.copy(loading = false, error = null) } }
-    fun clearTarget() { mutable.update { it.copy(target = null) } }
+
+    fun cancelSearch() {
+        request?.cancel()
+        mutable.update { it.copy(loading = false, error = null) }
+    }
+
+    fun clearTarget() {
+        mutable.update { it.copy(target = null) }
+    }
 }

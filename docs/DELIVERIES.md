@@ -12,3 +12,5 @@ O histórico inicial foi organizado retrospectivamente a partir do protótipo ex
 8. Documentação das funcionalidades e limitações do protótipo.
 
 Os textos de commit descrevem o conteúdo entregue. Mapas e consulta de CEP precisam de internet; o combate ainda usa passos simulados.
+9. Separação de telas, componentes, integração nativa do mapa e dependências.
+10. Formatação Kotlin consistente e remoção de imports e comentários dispensáveis.

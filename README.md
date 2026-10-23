@@ -28,7 +28,9 @@ Combate ainda usa passos simulados, acessíveis em Laboratório do protótipo. 2
 - domain: modelos e validação de perfil; regras puras de combate.
 - data: Room, repository de aventura, DataStore e fluxo de localização com limpeza de listeners.
 - ui: ViewModels, estado, telas Compose e integração com MapView/lifecycle.
-- MainActivity: composição das dependências.
+- ui/screens, ui/map, ui/components e ui/theme: telas, mapas, arte e tema separados.
+- di: criação dos ViewModels e composição das dependências.
+- MainActivity: ponto de entrada do aplicativo.
 
 ## Referências de design e implementação
 - https://design.google/library/expressive-material-design-google-research

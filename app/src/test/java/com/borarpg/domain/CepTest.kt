@@ -4,11 +4,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CepTest {
-    @Test fun acceptsFormattedAndUnformattedWithLeadingZero() {
+    @Test
+    fun acceptsFormattedAndUnformattedWithLeadingZero() {
         assertEquals("01310100", normalizeCep("01310-100"))
         assertEquals("01310100", normalizeCep(" 01310100 "))
     }
-    @Test fun rejectsMalformedInput() {
-        listOf("", "0131010", "013101000", "abcdefgh", "01310a100", "0131-0100", "01310 100").forEach { assertNull(normalizeCep(it)) }
+
+    @Test
+    fun rejectsMalformedInput() {
+        listOf("", "0131010", "013101000", "abcdefgh", "01310a100", "0131-0100", "01310 100")
+            .forEach { assertNull(normalizeCep(it)) }
     }
 }

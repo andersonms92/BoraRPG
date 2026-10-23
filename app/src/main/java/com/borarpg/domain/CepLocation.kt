@@ -1,6 +1,11 @@
 package com.borarpg.domain
 
-data class CepLocation(val cep: String, val address: String, val latitude: Double, val longitude: Double)
+data class CepLocation(
+    val cep: String,
+    val address: String,
+    val latitude: Double,
+    val longitude: Double,
+)
 
 fun normalizeCep(value: String): String? {
     val trimmed = value.trim()
