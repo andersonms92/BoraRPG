@@ -1,46 +1,49 @@
 # BoraRPG
-App Android de aventura por movimento. Kotlin, Jetpack Compose, MVVM, Room e DataStore.
+
+App Android de aventura por movimento, em Kotlin, Jetpack Compose e MVVM.
 
 ## Executar
-Abra esta pasta no Android Studio e execute o módulo app. Requer JDK 17+ e SDK 37.
-Windows: .\gradlew.bat testDebugUnitTest assembleDebug
 
-## Interface
-Jornada com arte vetorial própria, cores carvão/lima/coral, tipografia editorial, progressos animados e navegação Jornada / Território / Mochila / Você.
+Abra no Android Studio e execute o módulo app. Requer SDK 37 e JDK compatível com o Gradle configurado.
+
+```powershell
+.\gradlew.bat testDebugUnitTest assembleDebug lintDebug
+```
+
+## Atividades e RPG
+
+A jornada registra caminhada e corrida pelo contador de passos do aparelho. O usuário inicia e encerra a atividade; um serviço em primeiro plano mantém a contagem com a tela bloqueada e oferece a ação de encerrar na notificação.
+
+A primeira leitura define a referência da sessão. Passos anteriores e passos feitos entre sessões não são contabilizados. Cada passo registrado causa dano; cada dez passos concedem um XP. Uma vitória concede 50 XP adicionais, 25 de ouro e um fragmento. Dano excedente continua no próximo encontro, e lotes diferentes do sensor produzem as mesmas recompensas.
+
+Aparelhos sem contador compatível mostram indisponibilidade. Não há gerador artificial de passos, estimativa de distância por passos, gravação de trajetos ou registro de ciclismo. A atividade não reinicia automaticamente após o processo ser encerrado pelo sistema.
+
+O banco Room preserva o progresso real. A migração da versão 1 para a 2 remove somente o progresso da jornada, que era gerado por simulações. Perfil e objetivos pessoais, armazenados em DataStore, são preservados.
 
 ## Perfil
-Nome, peso (kg), altura (cm) e idade, com validação, feedback de erro e persistência DataStore local. Aceita vírgula decimal. Os dados não alteram treinos ou dano nesta etapa. Não há envio do perfil ao servidor.
 
-## Mapa e localização
-MapLibre Native OpenGL 13.6.1 + OpenFreeMap (mapas online, sem chave). Requer conexão para carregar mapas. O provedor recebe as requisições dos mapas da região visualizada; veja sua política em https://openfreemap.org/privacy/ . Não há backend próprio.
-- Solicita localização precisa/aproximada somente ao acionar o GPS.
-- Atualiza o ponto azul e acompanha a câmera; arrastar interrompe o acompanhamento, e o botão de localização o retoma.
-- Coleta apenas enquanto a área do mapa está visível e o app está em primeiro plano. Não grava trajetos nem atividades físicas.
-- Filtros de combate/exploração e seleção de objetivos com distância em linha reta.
-- Três pontos DEMONSTRATIVOS fixos no Ibirapuera, São Paulo. Não são missões reais nem garantem acesso ao lugar; não concedem recompensas.
-- Pressione e segure no mapa para salvar um objetivo pessoal. Toque para ver ou remover. Dados ficam em DataStore no aparelho.
-- Não há navegação de trajetos, geração automática de missões seguras, catálogo regional, sincronização ou chefe compartilhado.
+Nome, peso, altura e idade são validados e salvos localmente. As medidas ainda não alteram a prescrição de atividade ou as recompensas.
 
-## Regras do protótipo
-Combate ainda usa passos simulados, acessíveis em Laboratório do protótipo. 250 passos causam 250 de dano e 25 XP; vitória concede mais 50 XP, 25 de ouro e um fragmento. 100 XP por nível. Não há coleta real de passos nem de ciclismo. Room preserva progresso e atualização transacional sem migração destrutiva.
+## Território
 
-## Arquitetura
-- domain: modelos e validação de perfil; regras puras de combate.
-- data: Room, repository de aventura, DataStore e fluxo de localização com limpeza de listeners.
-- ui: ViewModels, estado, telas Compose e integração com MapView/lifecycle.
-- ui/screens, ui/map, ui/components e ui/theme: telas, mapas, arte e tema separados.
-- di: criação dos ViewModels e composição das dependências.
-- MainActivity: ponto de entrada do aplicativo.
+MapLibre Native e OpenFreeMap renderizam o mapa online. Não há pontos pré-cadastrados nem posição inicial representando o usuário. O mapa é centralizado pelo GPS ou por consulta de CEP à BrasilAPI. As coordenadas por CEP são aproximadas; a consulta pode retornar endereço sem coordenadas.
 
-## Referências de design e implementação
-- https://design.google/library/expressive-material-design-google-research
-- https://support.komoot.com/hc/en-us/articles/10207999797530-Find-routes-and-inspiration-on-komoot
-- https://maplibre.org/maplibre-native/android/examples/getting-started/
-- https://openfreemap.org/quick_start/
+Segure o mapa para salvar um objetivo pessoal; toque para consultar ou remover. A lista inicia vazia e exibe apenas locais criados pelo usuário. Os objetivos não são distribuídos por um backend e não concedem recompensas de visita.
+
+A localização do mapa é coletada somente com a área aberta e o app em primeiro plano. O contador de passos da atividade é independente do GPS. O provedor de mapas recebe as requisições da região visualizada; a BrasilAPI recebe o CEP consultado. Não há envio do perfil para um servidor próprio.
+
+## Organização
+
+- `domain`: modelos, validações e regras puras.
+- `data`: Room, DataStore e acesso a fontes externas.
+- `tracking`: serviço de contagem de passos.
+- `di`: composição das dependências.
+- `ui/screens`: telas da jornada, mochila e perfil.
+- `ui/map`: território, integração nativa e diálogo de CEP.
+- `ui/components` e `ui/theme`: componentes e identidade visual.
 
 ## Testes
-Testes unitários cobrem recompensas únicas, dano parcial, passos inválidos e validação de perfil (vírgula, limites, campos ausentes e idade inteira). Verificações no emulador complementam os testes; não comprovam precisão ou consumo de bateria em aparelho físico.
 
-## Busca por CEP
-Território > Buscar CEP consulta BrasilAPI CEP V2 e centraliza o mapa nas coordenadas retornadas. Aceita 8 dígitos ou 00000-000. Requer internet; CEP inexistente, falhas de rede e coordenadas ausentes têm mensagens próprias. A região por CEP pausa o acompanhamento da câmera pelo GPS e serve de referência para as distâncias dos objetivos. O botão de localização retoma o GPS. Não altera os sensores nem concede recompensas. A consulta envia apenas o CEP à BrasilAPI; a seleção permanece durante a sessão do app.
-Documentação: https://brasilapi.com.br/docs#tag/CEP-V2
+Os testes cobrem combate, recompensas, validação de perfil e CEP, leitura inicial do sensor, leituras duplicadas, reinício do contador, separação entre sessões e equivalência de lotes. Precisão e consumo de bateria devem ser validados em aparelho físico compatível.
+
+Referências: https://developer.android.com/develop/sensors-and-location/sensors/sensors_motion , https://openfreemap.org/quick_start/ e https://brasilapi.com.br/docs .

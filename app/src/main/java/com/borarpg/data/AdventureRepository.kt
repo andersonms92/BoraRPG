@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.map
 class AdventureRepository(private val db: GameDatabase) {
     val hero = db.heroDao().observe().map { (it ?: HeroEntity()).toDomain() }
 
-    suspend fun simulateSteps(steps: Int) = db.withTransaction {
+    suspend fun recordSteps(steps: Int) = db.withTransaction {
         val next = Combat.advance((db.heroDao().get() ?: HeroEntity()).toDomain(), steps)
         db.heroDao()
             .save(

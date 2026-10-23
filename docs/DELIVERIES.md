@@ -14,3 +14,6 @@ O histórico inicial foi organizado retrospectivamente a partir do protótipo ex
 Os textos de commit descrevem o conteúdo entregue. Mapas e consulta de CEP precisam de internet; o combate ainda usa passos simulados.
 9. Separação de telas, componentes, integração nativa do mapa e dependências.
 10. Formatação Kotlin consistente e remoção de imports e comentários dispensáveis.
+
+11. Remoção dos objetivos e da posição de demonstração do mapa.
+12. Contagem real de passos durante atividades, serviço em primeiro plano e migração do progresso de teste.

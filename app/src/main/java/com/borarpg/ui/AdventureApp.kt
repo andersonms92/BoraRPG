@@ -90,7 +90,8 @@ fun AdventureApp(adventure: AdventureViewModel, player: PlayerViewModel) {
                             JourneyScreen(
                                 state,
                                 profile.draft.name,
-                                adventure::simulate,
+                                adventure::startActivity,
+                                adventure::stopActivity,
                                 { tab = 1 },
                                 { tab = 3 },
                             )

@@ -22,7 +22,7 @@ interface HeroDao {
     @Upsert suspend fun save(hero: HeroEntity)
 }
 
-@Database(entities = [HeroEntity::class], version = 1, exportSchema = true)
+@Database(entities = [HeroEntity::class], version = 2, exportSchema = true)
 abstract class GameDatabase : RoomDatabase() {
     abstract fun heroDao(): HeroDao
 }

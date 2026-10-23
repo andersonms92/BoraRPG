@@ -13,13 +13,14 @@ data class Hero(
 
 object Combat {
     fun advance(hero: Hero, steps: Int): Hero {
-        require(steps in 1..500) { "Passos devem estar entre 1 e 500" }
-        val defeated = steps >= hero.hp
+        require(steps > 0) { "Passos devem ser positivos" }
+        val victories = if (steps < hero.hp) 0 else 1 + (steps - hero.hp) / 1000
+        val nextHp = if (steps < hero.hp) hero.hp - steps else 1000 - (steps - hero.hp) % 1000
         return hero.copy(
-            hp = if (defeated) 1000 else hero.hp - steps,
-            xp = hero.xp + steps / 10 + if (defeated) 50 else 0,
-            gold = hero.gold + if (defeated) 25 else 0,
-            victories = hero.victories + if (defeated) 1 else 0,
+            hp = nextHp,
+            xp = hero.xp + (hero.steps % 10 + steps) / 10 + victories * 50,
+            gold = hero.gold + victories * 25,
+            victories = hero.victories + victories,
             steps = hero.steps + steps,
         )
     }

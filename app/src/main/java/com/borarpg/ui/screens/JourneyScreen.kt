@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.borarpg.ui.AdventureState
+import com.borarpg.ui.components.ActivityControl
 import com.borarpg.ui.components.GuardianArt
 import com.borarpg.ui.theme.*
 
@@ -27,11 +27,11 @@ import com.borarpg.ui.theme.*
 internal fun JourneyScreen(
     state: AdventureState,
     name: String,
-    simulate: () -> Unit,
+    startActivity: () -> Unit,
+    stopActivity: () -> Unit,
     map: () -> Unit,
     profile: () -> Unit,
 ) {
-    var showLab by rememberSaveable { mutableStateOf(false) }
     val hero = state.hero
     val hp by animateFloatAsState(hero.hp / 1000f, label = "Vida do guardião")
     Column(
@@ -69,9 +69,10 @@ internal fun JourneyScreen(
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Metric("NÍVEL", "${hero.level}", Modifier.weight(1f))
-            Metric("PASSOS TESTE", "${hero.steps}", Modifier.weight(1f))
+            Metric("PASSOS", "${hero.steps}", Modifier.weight(1f))
             Metric("OURO", "${hero.gold}", Modifier.weight(1f))
         }
+        ActivityControl(state, startActivity, stopActivity)
         Box(
             Modifier.fillMaxWidth()
                 .clip(
@@ -112,7 +113,7 @@ internal fun JourneyScreen(
                     modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
                 )
                 Text(
-                    "Continue de onde parou. Cada passo de teste causa um ponto de dano.",
+                    "Cada passo registrado durante sua atividade causa um ponto de dano.",
                     color = Muted,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -166,25 +167,6 @@ internal fun JourneyScreen(
             "${100 - hero.xp % 100} XP até o nível ${hero.level + 1} · ${hero.victories} vitórias",
             color = Muted,
         )
-        HorizontalDivider(color = Panel)
-        TextButton(onClick = { showLab = !showLab }) {
-            Icon(Icons.Outlined.Science, null)
-            Spacer(Modifier.width(8.dp))
-            Text(if (showLab) "Fechar laboratório" else "Laboratório do protótipo")
-        }
-        if (showLab) {
-            Text(
-                "O GPS do mapa é real. O combate ainda usa passos simulados; caminhada, corrida e bicicleta não são gravadas nesta versão.",
-                color = Muted,
-            )
-            Button(
-                enabled = !state.loading,
-                onClick = simulate,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Simular 250 passos")
-            }
-        }
         if (state.loading) CircularProgressIndicator()
         state.error?.let { Text(it, color = Coral) }
     }
