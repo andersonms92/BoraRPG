@@ -36,7 +36,9 @@ class PlayerRepository(context: Context) {
                 q.getString("title"),
                 q.getDouble("lat"),
                 q.getDouble("lon"),
-                "Exploração",
+                q.optString("kind", "Exploração"),
+                q.optBoolean("generated", false),
+                q.optString("description", ""),
             )
         }
     }
@@ -62,6 +64,9 @@ class PlayerRepository(context: Context) {
                     .put("title", quest.title.trim())
                     .put("lat", quest.latitude)
                     .put("lon", quest.longitude)
+                    .put("kind", quest.kind)
+                    .put("generated", quest.generated)
+                    .put("description", quest.description)
             )
             p[key("quests")] = array.toString()
         }

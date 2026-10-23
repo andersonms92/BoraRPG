@@ -6,4 +6,6 @@ data class QuestPoint(
     val latitude: Double,
     val longitude: Double,
     val kind: String,
+    val generated: Boolean = false,
+    val description: String = "",
 )
