@@ -25,9 +25,9 @@ class PlayerViewModel(private val repository: PlayerRepository) : ViewModel() {
                 _profile.update { state ->
                     state.copy(message = "Não foi possível carregar os locais.")
                 }
-                emit(sampleQuests)
+                emit(emptyList())
             }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), sampleQuests)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         viewModelScope.launch {

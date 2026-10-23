@@ -82,7 +82,6 @@ fun WorldMap(player: PlayerViewModel) {
     var title by rememberSaveable { mutableStateOf("") }
     var follow by rememberSaveable { mutableStateOf(true) }
     var recenter by remember { mutableIntStateOf(0) }
-    var showDemo by remember { mutableIntStateOf(0) }
     var mapError by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     LaunchedEffect(cep.revision) {
@@ -98,7 +97,6 @@ fun WorldMap(player: PlayerViewModel) {
             gps.location,
             follow,
             recenter,
-            showDemo,
             cep.target,
             cep.revision,
             onGesture = { follow = false },
@@ -188,11 +186,7 @@ fun WorldMap(player: PlayerViewModel) {
             ) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (selected != null) {
-                        Eyebrow(
-                            if (selected.demo) "Objetivo de demonstração · Ibirapuera"
-                            else "Seu objetivo de exploração",
-                            Coral,
-                        )
+                        Eyebrow("Seu objetivo de exploração", Coral)
                         Text(selected.title, style = MaterialTheme.typography.titleLarge)
                         val reference =
                             cep.target?.let { LatLng(it.latitude, it.longitude) }
@@ -217,23 +211,20 @@ fun WorldMap(player: PlayerViewModel) {
                             color = Muted,
                         )
                         Text(
-                            if (selected.demo)
-                                "Encontro ilustrativo. Ainda não concede recompensas."
-                            else "Local marcado por você. Visite apenas áreas de acesso público.",
+                            "Local marcado por você. Visite apenas áreas de acesso público.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Muted,
                         )
                         Row {
                             TextButton(onClick = { selectedId = null }) { Text("Fechar") }
-                            if (!selected.demo)
-                                TextButton(
-                                    onClick = {
-                                        player.deleteQuest(selected.id)
-                                        selectedId = null
-                                    }
-                                ) {
-                                    Text("Remover local")
+                            TextButton(
+                                onClick = {
+                                    player.deleteQuest(selected.id)
+                                    selectedId = null
                                 }
+                            ) {
+                                Text("Remover local")
+                            }
                         }
                     } else {
                         Eyebrow(
@@ -291,18 +282,11 @@ fun WorldMap(player: PlayerViewModel) {
                                 ) {
                                     Text("Configurar GPS")
                                 }
-                            TextButton(
-                                onClick = {
-                                    cepViewModel.clearTarget()
-                                    follow = false
-                                    showDemo++
-                                }
-                            ) {
-                                Text("Ver exemplos")
-                            }
                         }
                         Text(
-                            "Exemplos no Ibirapuera, SP · GPS somente com o mapa aberto.",
+                            if (quests.isEmpty())
+                                "Nenhum objetivo salvo. Segure um local no mapa para criar o primeiro."
+                            else "GPS somente com o mapa aberto.",
                             style = MaterialTheme.typography.labelSmall,
                             color = Muted,
                         )

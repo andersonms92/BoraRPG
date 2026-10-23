@@ -29,17 +29,16 @@ class PlayerRepository(context: Context) {
     }
     val quests: Flow<List<QuestPoint>> = preferences.map { prefs ->
         val array = JSONArray(prefs[key("quests")] ?: "[]")
-        sampleQuests +
-            (0 until array.length()).map { index ->
-                val q = array.getJSONObject(index)
-                QuestPoint(
-                    q.getString("id"),
-                    q.getString("title"),
-                    q.getDouble("lat"),
-                    q.getDouble("lon"),
-                    "Exploração",
-                )
-            }
+        (0 until array.length()).map { index ->
+            val q = array.getJSONObject(index)
+            QuestPoint(
+                q.getString("id"),
+                q.getString("title"),
+                q.getDouble("lat"),
+                q.getDouble("lon"),
+                "Exploração",
+            )
+        }
     }
 
     suspend fun save(profile: PlayerProfile) {

@@ -31,7 +31,6 @@ internal fun NativeWorldMap(
     location: android.location.Location?,
     follow: Boolean,
     recenter: Int,
-    showDemo: Int,
     cepTarget: CepLocation?,
     cepRevision: Int,
     onGesture: () -> Unit,
@@ -122,9 +121,7 @@ internal fun NativeWorldMap(
                 0,
                 0,
             )
-            controller.moveCamera(
-                CameraUpdateFactory.newLatLngZoom(LatLng(-23.5874, -46.6576), 14.5)
-            )
+            controller.moveCamera(CameraUpdateFactory.zoomTo(1.0))
             controller.addOnCameraMoveStartedListener { reason ->
                 if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE)
                     latestGesture()
@@ -253,10 +250,6 @@ internal fun NativeWorldMap(
                     )
                 )
         }
-    }
-    LaunchedEffect(showDemo, ready) {
-        if (showDemo > 0 && ready)
-            map?.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(-23.5874, -46.6576), 14.5))
     }
     LaunchedEffect(cepTarget, cepRevision, ready) {
         if (ready && cepTarget != null)
