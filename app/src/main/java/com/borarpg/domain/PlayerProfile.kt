@@ -1,0 +1,20 @@
+package com.borarpg.domain
+
+data class PlayerProfile(val name: String = "", val weight: String = "", val height: String = "", val age: String = "") {
+    fun errors(): Map<String, String> = buildMap {
+        if (name.isBlank() || name.trim().length > 40) put("name", "Informe um nome de até 40 caracteres.")
+        val kg = weight.replace(',', '.').toDoubleOrNull()
+        if (kg == null || !kg.isFinite() || kg !in 20.0..400.0) put("weight", "Informe um peso entre 20 e 400 kg.")
+        val cm = height.replace(',', '.').toDoubleOrNull()
+        if (cm == null || !cm.isFinite() || cm !in 80.0..250.0) put("height", "Informe uma altura entre 80 e 250 cm.")
+        if (age.toIntOrNull() !in 13..120) put("age", "Informe uma idade entre 13 e 120 anos.")
+    }
+}
+
+data class QuestPoint(val id: String, val title: String, val latitude: Double, val longitude: Double, val kind: String, val demo: Boolean = false)
+
+val sampleQuests = listOf(
+    QuestPoint("demo-1", "Guardião do lago", -23.5874, -46.6576, "Combate", true),
+    QuestPoint("demo-2", "Bosque dos fragmentos", -23.5850, -46.6601, "Exploração", true),
+    QuestPoint("demo-3", "Portal da alvorada", -23.5901, -46.6559, "Exploração", true)
+)
