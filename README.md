@@ -7,7 +7,7 @@ App Android de aventura por movimento, em Kotlin, Jetpack Compose e MVVM. Dados 
 Abra no Android Studio e execute o módulo app. Requer SDK 37 e JDK compatível com o Gradle configurado.
 
 ```powershell
-.\gradlew.bat testDebugUnitTest assembleDebug lintDebug
+.\gradlew.bat :core:domain:test :app:assembleDebug lintDebug
 ```
 
 Os testes instrumentados usam o runner AndroidJUnitRunner. Execute-os selecionando um emulador ou aparelho de teste.
@@ -44,12 +44,41 @@ Perfil, progresso, missões, inventário e percursos ficam no aparelho. Não há
 
 A migração Room 1→2 remove apenas o progresso simulado antigo. As migrações 2→3 e 3→4 acrescentam missões, inventário e atividades, preservando o progresso real.
 
-## Organização e validação
+## Módulos e injeção de dependências
 
-- `domain`: modelos, relógio, distância, calorias e regras puras.
-- `data`: Room, DataStore, migrações e acesso a fontes externas.
-- `tracking`: serviço GPS e contador de passos.
-- `di`: composição das dependências.
-- `ui/screens`, `ui/map`, `ui/components`, `ui/theme`: telas, mapas e identidade visual.
+| Módulo | Responsabilidade |
+| --- | --- |
+| `app` | Application, Activity e navegação entre as features |
+| `feature:journey` | Jornada, combate e resumo do personagem |
+| `feature:activity` | Mapa, CEP, objetivos salvos, controles e histórico de exercícios |
+| `feature:backpack` | Mochila e equipamentos |
+| `feature:profile` | Formulário e validação dos dados pessoais |
+| `feature:missions` | Estado e componentes de missões compartilhados pelas features |
+| `core:domain` | Kotlin/JVM puro: modelos, validações, relógio, distância, calorias e regras de RPG |
+| `core:data` | Room, DataStore, repositórios, consulta de CEP e localização |
+| `core:tracking` | Serviço de GPS, contador de passos e controle das sessões |
+| `core:designsystem` | Tema, componentes visuais e arte compartilhados |
+| `build-logic` | Plugins de convenção para bibliotecas Android, Compose, Hilt e features |
 
-Os testes unitários cobrem combate, recompensas, perfil, CEP, geração de objetivos, sensor, pausas, distância e calorias. Os testes instrumentados verificam persistência do percurso após reabrir o banco, recuperação de sessão, migração 2→4 e resgate único de recompensas.
+As versões das dependências ficam em `gradle/libs.versions.toml`. O KSP 2.3.6 inclui a [correção de bloqueio de JARs em recompilações no Windows](https://github.com/google/ksp/releases/tag/2.3.6). Cada feature possui seu próprio build Gradle, pacote, telas e ViewModels. Jornada, Atividade e Mochila usam a feature Missões; as demais features não dependem umas das outras. Nenhum módulo `core` depende de `feature` ou de `app`.
+
+O Hilt inicializa a aplicação (`@HiltAndroidApp`), a Activity e o serviço (`@AndroidEntryPoint`). Os ViewModels usam `@HiltViewModel`, injeção pelo construtor e `hiltViewModel()` nas rotas Compose. Repositórios e controlador de tracking são singletons; o módulo de banco fornece uma única instância Room e os DAOs. Não há factory manual ou localizador global de banco.
+
+Os arquivos do banco e do DataStore e a versão 4 do esquema permanecem os mesmos. Modularizar não apaga nem migra novamente o progresso existente. Os esquemas e testes de persistência agora ficam em `core/data`.
+
+## Validação
+
+```powershell
+.\gradlew.bat :core:domain:test :app:assembleDebug lintDebug
+.\gradlew.bat :app:assembleDebugAndroidTest :core:data:assembleDebugAndroidTest
+```
+
+Com um emulador ou aparelho de teste selecionado:
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest
+```
+
+Os 30 testes JVM do domínio cobrem combate, recompensas, perfil, CEP, geração de objetivos, sensor, pausas, distância e calorias. Os testes instrumentados de dados verificam persistência do percurso após reabrir o banco, recuperação de sessão, migração 2→4 e resgate único de recompensas. O teste instrumentado do aplicativo verifica a criação dos ViewModels de todas as features através do Hilt na Activity real.
+
+Referências: [Hilt e Gradle](https://dagger.dev/hilt/gradle-setup), [ViewModels com Hilt](https://dagger.dev/hilt/view-model.html) e [Hilt em aplicações com vários módulos](https://developer.android.com/training/dependency-injection/hilt-multi-module).
