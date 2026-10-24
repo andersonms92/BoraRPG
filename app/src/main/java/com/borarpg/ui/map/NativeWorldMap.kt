@@ -11,6 +11,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.borarpg.domain.CepLocation
 import com.borarpg.domain.QuestPoint
+import com.borarpg.domain.RoutePoint
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
@@ -19,11 +20,13 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory.*
 import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 
 @Composable
@@ -40,6 +43,8 @@ internal fun NativeWorldMap(
     onLongPress: (LatLng) -> Unit,
     onError: (String?) -> Unit,
     onReady: () -> Unit,
+    route: List<RoutePoint> = emptyList(),
+    fitRoute: Boolean = false,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -53,6 +58,7 @@ internal fun NativeWorldMap(
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     var ready by remember { mutableStateOf(false) }
     var objectivesSource by remember { mutableStateOf<GeoJsonSource?>(null) }
+    var routeSource by remember { mutableStateOf<GeoJsonSource?>(null) }
     var playerSource by remember { mutableStateOf<GeoJsonSource?>(null) }
     val view = remember {
         MapLibre.getInstance(context)
@@ -153,6 +159,14 @@ internal fun NativeWorldMap(
                 true
             }
             controller.setStyle("https://tiles.openfreemap.org/styles/dark") { style ->
+                val routeData =
+                    GeoJsonSource("route", FeatureCollection.fromFeatures(emptyArray<Feature>()))
+                style.addSource(routeData)
+                routeSource = routeData
+                style.addLayer(
+                    LineLayer("route-line", "route")
+                        .withProperties(lineColor("#83BFFF"), lineWidth(5f))
+                )
                 val objectives = GeoJsonSource("objectives", questFeatures(latestQuests))
                 style.addSource(objectives)
                 objectivesSource = objectives
@@ -280,6 +294,34 @@ internal fun NativeWorldMap(
                     15.0,
                 )
             )
+        }
+    }
+    LaunchedEffect(routeSource, route, fitRoute, recenter) {
+        routeSource?.setGeoJson(
+            FeatureCollection.fromFeatures(
+                route
+                    .groupBy { it.segment }
+                    .values
+                    .filter { it.size > 1 }
+                    .map { segment ->
+                        Feature.fromGeometry(
+                            LineString.fromLngLats(
+                                segment.map { Point.fromLngLat(it.longitude, it.latitude) }
+                            )
+                        )
+                    }
+            )
+        )
+        if (ready && fitRoute && route.isNotEmpty()) {
+            val coordinates = route.map { LatLng(it.latitude, it.longitude) }.distinct()
+            if (coordinates.size > 1)
+                map?.animateCamera(
+                    CameraUpdateFactory.newLatLngBounds(
+                        LatLngBounds.Builder().includes(coordinates).build(),
+                        48,
+                    )
+                )
+            else map?.animateCamera(CameraUpdateFactory.newLatLngZoom(coordinates.first(), 16.0))
         }
     }
     AndroidView(factory = { view }, modifier = Modifier.fillMaxSize())

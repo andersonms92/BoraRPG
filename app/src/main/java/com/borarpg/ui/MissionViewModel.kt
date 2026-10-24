@@ -32,7 +32,7 @@ class MissionViewModel(private val repository: MissionRepository) : ViewModel() 
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MissionState())
 
     fun accept(quest: QuestPoint) =
-        runAction("Missão aceita. Inicie uma atividade na Jornada para avançar.") {
+        runAction("Missão aceita. Inicie uma atividade na aba Atividade para avançar.") {
             repository.accept(quest)
         }
 

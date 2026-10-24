@@ -41,9 +41,12 @@ import org.maplibre.android.style.layers.PropertyFactory.*
 import org.maplibre.geojson.*
 
 @Composable
-fun WorldMap(player: PlayerViewModel, missions: MissionViewModel) {
+fun WorldMap(
+    player: PlayerViewModel,
+    missions: MissionViewModel,
+    cepViewModel: CepViewModel = viewModel(),
+) {
     val mission by missions.state.collectAsStateWithLifecycle()
-    val cepViewModel: CepViewModel = viewModel()
     val cep by cepViewModel.state.collectAsStateWithLifecycle()
     var showCep by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current

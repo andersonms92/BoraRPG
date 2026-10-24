@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.borarpg.ui.AdventureState
 import com.borarpg.ui.MissionViewModel
-import com.borarpg.ui.components.ActivityControl
 import com.borarpg.ui.components.GuardianArt
 import com.borarpg.ui.components.MissionProgressCard
 import com.borarpg.ui.theme.*
@@ -31,7 +30,6 @@ internal fun JourneyScreen(
     state: AdventureState,
     name: String,
     startActivity: () -> Unit,
-    stopActivity: () -> Unit,
     map: () -> Unit,
     profile: () -> Unit,
     missions: MissionViewModel,
@@ -77,7 +75,9 @@ internal fun JourneyScreen(
             Metric("PASSOS", "${hero.steps}", Modifier.weight(1f))
             Metric("OURO", "${hero.gold}", Modifier.weight(1f))
         }
-        ActivityControl(state, startActivity, stopActivity)
+        Button(onClick = startActivity, modifier = Modifier.fillMaxWidth()) {
+            Text("Abrir atividade · caminhar ou correr")
+        }
         mission.active?.let {
             MissionProgressCard(it, mission.busy, missions::claim, missions::cancel)
         }

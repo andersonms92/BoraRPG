@@ -18,8 +18,7 @@ internal class BoraViewModelFactory(private val context: Context) : ViewModelPro
                     )
                 modelClass.isAssignableFrom(AdventureViewModel::class.java) ->
                     AdventureViewModel(
-                        AdventureRepository(DatabaseProvider.get(context.applicationContext)),
-                        TrackingController(context.applicationContext),
+                        AdventureRepository(DatabaseProvider.get(context.applicationContext))
                     )
                 modelClass.isAssignableFrom(PlayerViewModel::class.java) ->
                     PlayerViewModel(PlayerRepository(context.applicationContext))

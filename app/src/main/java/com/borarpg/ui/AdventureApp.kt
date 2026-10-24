@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,6 +32,7 @@ fun AdventureApp(
 ) {
     val state by adventure.state.collectAsStateWithLifecycle()
     val profile by player.profile.collectAsStateWithLifecycle()
+    val cep: CepViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     BoraTheme {
         Scaffold(
@@ -44,10 +46,11 @@ fun AdventureApp(
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
-                        val names = listOf("Jornada", "Território", "Mochila", "Você")
+                        val names = listOf("Jornada", "Atividade", "Território", "Mochila", "Você")
                         val icons =
                             listOf(
                                 Icons.Outlined.Explore,
+                                Icons.AutoMirrored.Outlined.DirectionsRun,
                                 Icons.Outlined.Map,
                                 Icons.Outlined.Backpack,
                                 Icons.Outlined.Person,
@@ -94,15 +97,15 @@ fun AdventureApp(
                             JourneyScreen(
                                 state,
                                 profile.draft.name,
-                                adventure::startActivity,
-                                adventure::stopActivity,
                                 { tab = 1 },
-                                { tab = 3 },
+                                { tab = 2 },
+                                { tab = 4 },
                                 missions,
                             )
-                        1 -> WorldMap(player, missions)
-                        2 -> BackpackScreen(state.hero, missions)
-                        3 -> ProfileScreen(player, state.hero)
+                        1 -> WorkoutScreen(player, missions, cep)
+                        2 -> WorldMap(player, missions, cep)
+                        3 -> BackpackScreen(state.hero, missions)
+                        4 -> ProfileScreen(player, state.hero)
                     }
                 }
             }
