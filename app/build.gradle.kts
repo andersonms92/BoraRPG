@@ -11,6 +11,7 @@ android {
         applicationId = "com.borarpg"
         minSdk = 26
         targetSdk = 37
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionCode = 1
         versionName = "0.1.0"
     }
@@ -19,6 +20,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { compose = true }
+    sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
 }
 
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
@@ -36,4 +38,6 @@ dependencies {
     implementation("androidx.room:room-ktx:2.8.4")
     ksp("androidx.room:room-compiler:2.8.4")
     testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
 }

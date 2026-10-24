@@ -44,7 +44,15 @@ class LocationRepository(private val context: Context) {
                 }
 
                 override fun onProviderDisabled(provider: String) {
-                    trySend(GpsState(message = "Localização desativada. Ative o GPS do aparelho."))
+                    if (
+                        manager.getProviders(true).none {
+                            it == LocationManager.GPS_PROVIDER ||
+                                it == LocationManager.NETWORK_PROVIDER
+                        }
+                    )
+                        trySend(
+                            GpsState(message = "Localização desativada. Ative o GPS do aparelho.")
+                        )
                 }
 
                 override fun onProviderEnabled(provider: String) {

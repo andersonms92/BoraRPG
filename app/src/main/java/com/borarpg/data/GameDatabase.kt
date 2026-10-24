@@ -23,12 +23,14 @@ interface HeroDao {
 }
 
 @Database(
-    entities = [HeroEntity::class, MissionEntity::class, ItemEntity::class],
-    version = 3,
+    entities = [HeroEntity::class, MissionEntity::class, ItemEntity::class, WorkoutEntity::class],
+    version = 4,
     exportSchema = true,
 )
 abstract class GameDatabase : RoomDatabase() {
     abstract fun heroDao(): HeroDao
 
     abstract fun missionDao(): MissionDao
+
+    abstract fun workoutDao(): WorkoutDao
 }
