@@ -47,3 +47,7 @@ A localização do mapa é coletada somente com a área aberta e o app em primei
 Os testes cobrem combate, recompensas, validação de perfil e CEP, leitura inicial do sensor, leituras duplicadas, reinício do contador, separação entre sessões e equivalência de lotes. Precisão e consumo de bateria devem ser validados em aparelho físico compatível.
 
 Referências: https://developer.android.com/develop/sensors-and-location/sensors/sensors_motion , https://openfreemap.org/quick_start/ e https://brasilapi.com.br/docs .
+
+## Tempo de atividade
+O cronômetro na Jornada começa ao iniciar uma atividade e termina ao encerrá-la, incluindo o período com a tela bloqueada. A notificação também exibe o tempo em andamento. A duração da última atividade encerrada é salva localmente. O contador usa tempo monotônico para não depender de alterações no relógio do aparelho. Uma atividade interrompida pelo encerramento do processo não é retomada automaticamente.
+O botão Novos objetivos fica sempre visível acima do painel inferior do Território; sem um CEP selecionado, abre a busca por CEP.

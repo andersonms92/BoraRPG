@@ -22,3 +22,6 @@ Os textos de commit descrevem o conteúdo entregue. Mapas e consulta de CEP prec
 14. Integração ao CEP, novos sorteios, enquadramento dos pontos no mapa e salvamento dos objetivos.
 
 Validação da entrega 14: compilação, 17 testes e lint passaram. As consultas reais aos servidores Overpass tiveram timeout neste ambiente; a geração online de ponta a ponta ainda precisa ser confirmada com o serviço disponível.
+
+15. Destaque permanente do botão Novos objetivos no Território.
+16. Cronômetro da atividade na Jornada e na notificação, com duração final salva localmente.

@@ -15,7 +15,10 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.borarpg.domain.formatActivityTime
 import com.borarpg.ui.AdventureState
 import com.borarpg.ui.theme.*
 
@@ -35,6 +38,13 @@ internal fun ActivityControl(state: AdventureState, onStart: () -> Unit, onStop:
             } else denied = true
         }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Eyebrow(if (state.tracking.active) "Tempo de atividade" else "Última atividade")
+        Text(
+            formatActivityTime(state.tracking.elapsedMillis),
+            fontSize = 38.sp,
+            fontFamily = FontFamily.Monospace,
+            color = Lime,
+        )
         Button(
             enabled = !state.loading && state.error == null && state.sensorAvailable,
             shape = RoundedCornerShape(18.dp),

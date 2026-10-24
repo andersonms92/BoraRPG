@@ -8,10 +8,12 @@ import android.content.pm.ServiceInfo
 import android.hardware.*
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import com.borarpg.MainActivity
 import com.borarpg.R
 import com.borarpg.data.*
 import com.borarpg.domain.StepCounter
+import com.borarpg.domain.activityElapsedMillis
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -22,6 +24,8 @@ class StepTrackingService : Service(), SensorEventListener {
     private var tracking = false
     private var finishing = false
     private lateinit var worker: Job
+    private var timer: Job? = null
+    private var startedAt: Long? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -100,7 +104,17 @@ class StepTrackingService : Service(), SensorEventListener {
                 return START_NOT_STICKY
             }
             tracking = true
+            val start = SystemClock.elapsedRealtime()
+            startedAt = start
             TrackingRuntime.update(TrackingState(active = true))
+            timer = scope.launch {
+                while (isActive) {
+                    TrackingRuntime.elapsed(
+                        activityElapsedMillis(start, SystemClock.elapsedRealtime())
+                    )
+                    delay(1000)
+                }
+            }
         } catch (_: RuntimeException) {
             TrackingRuntime.update(
                 TrackingState(
@@ -125,12 +139,31 @@ class StepTrackingService : Service(), SensorEventListener {
     private fun finishTracking() {
         if (finishing) return
         finishing = true
+        timer?.cancel()
+        val elapsed =
+            startedAt?.let { activityElapsedMillis(it, SystemClock.elapsedRealtime()) } ?: 0L
+        TrackingRuntime.elapsed(elapsed)
         sensors.unregisterListener(this)
         readings.close()
         scope.launch {
             worker.join()
+            if (startedAt != null) {
+                try {
+                    ActivityTimeRepository(applicationContext).saveDuration(elapsed)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    TrackingRuntime.update(
+                        TrackingState(
+                            active = true,
+                            elapsedMillis = elapsed,
+                            error = "Não foi possível salvar a duração da atividade.",
+                        )
+                    )
+                }
+            }
             withContext(Dispatchers.Main) {
-                if (TrackingRuntime.state.value.active) TrackingRuntime.update(TrackingState())
+                TrackingRuntime.stop(elapsed)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -141,7 +174,11 @@ class StepTrackingService : Service(), SensorEventListener {
         sensors.unregisterListener(this)
         readings.close()
         scope.cancel()
-        if (TrackingRuntime.state.value.active) TrackingRuntime.update(TrackingState())
+        if (TrackingRuntime.state.value.active) {
+            TrackingRuntime.stop(
+                startedAt?.let { activityElapsedMillis(it, SystemClock.elapsedRealtime()) } ?: 0L
+            )
+        }
         super.onDestroy()
     }
 
@@ -166,6 +203,8 @@ class StepTrackingService : Service(), SensorEventListener {
             .setContentText("Seus passos estão avançando a jornada.")
             .setContentIntent(open)
             .setOngoing(true)
+            .setWhen(System.currentTimeMillis())
+            .setUsesChronometer(true)
             .addAction(Notification.Action.Builder(null, "Encerrar", stop).build())
             .build()
     }
