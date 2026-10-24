@@ -24,7 +24,11 @@ import com.borarpg.ui.screens.*
 import com.borarpg.ui.theme.*
 
 @Composable
-fun AdventureApp(adventure: AdventureViewModel, player: PlayerViewModel) {
+fun AdventureApp(
+    adventure: AdventureViewModel,
+    player: PlayerViewModel,
+    missions: MissionViewModel,
+) {
     val state by adventure.state.collectAsStateWithLifecycle()
     val profile by player.profile.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -94,9 +98,10 @@ fun AdventureApp(adventure: AdventureViewModel, player: PlayerViewModel) {
                                 adventure::stopActivity,
                                 { tab = 1 },
                                 { tab = 3 },
+                                missions,
                             )
-                        1 -> WorldMap(player)
-                        2 -> BackpackScreen(state.hero)
+                        1 -> WorldMap(player, missions)
+                        2 -> BackpackScreen(state.hero, missions)
                         3 -> ProfileScreen(player, state.hero)
                     }
                 }

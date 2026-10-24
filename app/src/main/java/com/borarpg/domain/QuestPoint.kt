@@ -8,4 +8,9 @@ data class QuestPoint(
     val kind: String,
     val generated: Boolean = false,
     val description: String = "",
+    val goalSteps: Int = 0,
+    val xpReward: Int = 0,
+    val goldReward: Int = 0,
+    val itemReward: String = "",
+    val rarity: String = "Comum",
 )

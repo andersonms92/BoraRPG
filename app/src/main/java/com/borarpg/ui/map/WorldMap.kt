@@ -29,7 +29,9 @@ import com.borarpg.data.GpsState
 import com.borarpg.data.LocationRepository
 import com.borarpg.domain.QuestPoint
 import com.borarpg.ui.CepViewModel
+import com.borarpg.ui.MissionViewModel
 import com.borarpg.ui.PlayerViewModel
+import com.borarpg.ui.components.MissionProgressCard
 import com.borarpg.ui.theme.*
 import java.util.UUID
 import kotlinx.coroutines.flow.flowOf
@@ -39,7 +41,8 @@ import org.maplibre.android.style.layers.PropertyFactory.*
 import org.maplibre.geojson.*
 
 @Composable
-fun WorldMap(player: PlayerViewModel) {
+fun WorldMap(player: PlayerViewModel, missions: MissionViewModel) {
+    val mission by missions.state.collectAsStateWithLifecycle()
     val cepViewModel: CepViewModel = viewModel()
     val cep by cepViewModel.state.collectAsStateWithLifecycle()
     var showCep by rememberSaveable { mutableStateOf(false) }
@@ -74,7 +77,10 @@ fun WorldMap(player: PlayerViewModel) {
             initialValue = GpsState(message = "Ative o GPS para acompanhar sua posição.")
         )
     val savedQuests by player.quests.collectAsStateWithLifecycle()
-    val quests = (savedQuests + cep.objectives).distinctBy { it.id }
+    val quests =
+        (listOfNotNull(mission.active?.quest) + savedQuests + cep.objectives)
+            .distinctBy { it.id }
+            .filter { it.id !in mission.claimed }
     val profile by player.profile.collectAsStateWithLifecycle()
     var filter by rememberSaveable { mutableStateOf("Todos") }
     val visible = quests.filter { filter == "Todos" || it.kind == filter }
@@ -218,6 +224,35 @@ fun WorldMap(player: PlayerViewModel) {
                         Text(selected.title, style = MaterialTheme.typography.titleLarge)
                         if (selected.description.isNotBlank())
                             Text(selected.description, color = Lime)
+                        if (selected.goalSteps > 0) {
+                            Tag("${selected.rarity} · ${selected.goalSteps} passos")
+                            Text(
+                                "+${selected.xpReward} XP · ${selected.goldReward} ouro",
+                                color = Lime,
+                            )
+                            Text("Item: ${selected.itemReward}", color = Coral)
+                            if (mission.active?.quest?.id == selected.id) {
+                                MissionProgressCard(
+                                    mission.active!!,
+                                    mission.busy,
+                                    missions::claim,
+                                    missions::cancel,
+                                )
+                            } else {
+                                Button(
+                                    enabled = !mission.busy && mission.active == null,
+                                    onClick = { missions.accept(selected) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text("Aceitar missão")
+                                }
+                                if (mission.active != null)
+                                    Text(
+                                        "Conclua ou cancele a missão ativa na Jornada.",
+                                        color = Muted,
+                                    )
+                            }
+                        }
                         val reference =
                             cep.target?.let { LatLng(it.latitude, it.longitude) }
                                 ?: gps.location?.let { LatLng(it.latitude, it.longitude) }
@@ -241,8 +276,9 @@ fun WorldMap(player: PlayerViewModel) {
                             color = Muted,
                         )
                         Text(
-                            if (selected.generated)
-                                "Local mapeado no OpenStreetMap. Confira o acesso e os horários no local."
+                            if (selected.generated && selected.goalSteps > 0)
+                                "Encontro virtual: a meta é de passos. Não é necessário entrar no terreno indicado pelo marcador."
+                            else if (selected.generated) "Local salvo anteriormente."
                             else "Local marcado por você. Visite apenas áreas de acesso público.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Muted,
@@ -350,6 +386,7 @@ fun WorldMap(player: PlayerViewModel) {
                     profile.message
                         ?.takeIf { it.contains("local", true) }
                         ?.let { Text(it, color = Coral) }
+                    mission.message?.let { Text(it, color = Lime) }
                 }
             }
         }

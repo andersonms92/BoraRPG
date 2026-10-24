@@ -13,12 +13,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.borarpg.domain.Hero
+import com.borarpg.ui.MissionViewModel
 import com.borarpg.ui.components.GuardianArt
 import com.borarpg.ui.theme.*
 
 @Composable
-internal fun BackpackScreen(hero: Hero) {
+internal fun BackpackScreen(hero: Hero, missions: MissionViewModel) {
+    val mission by missions.state.collectAsStateWithLifecycle()
     Column(
         Modifier.fillMaxSize()
             .statusBarsPadding()
@@ -48,9 +51,19 @@ internal fun BackpackScreen(hero: Hero) {
             "${hero.victories}",
         )
         Text(
-            "Sua mochila cresce a cada encontro. Loja e habilidades de equipamentos chegam em uma próxima etapa.",
+            "Itens de missões",
             color = Muted,
         )
+        if (mission.inventory.isEmpty())
+            Text("Complete uma missão no Território para ganhar itens.", color = Muted)
+        mission.inventory.forEach { item ->
+            Equipment(
+                Icons.Outlined.AutoAwesome,
+                item.name,
+                "Recompensa de missão",
+                "${item.quantity}",
+            )
+        }
     }
 }
 

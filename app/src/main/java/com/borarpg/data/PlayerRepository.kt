@@ -39,6 +39,11 @@ class PlayerRepository(context: Context) {
                 q.optString("kind", "Exploração"),
                 q.optBoolean("generated", false),
                 q.optString("description", ""),
+                q.optInt("goalSteps", 0),
+                q.optInt("xpReward", 0),
+                q.optInt("goldReward", 0),
+                q.optString("itemReward", ""),
+                q.optString("rarity", "Comum"),
             )
         }
     }
@@ -67,6 +72,11 @@ class PlayerRepository(context: Context) {
                     .put("kind", quest.kind)
                     .put("generated", quest.generated)
                     .put("description", quest.description)
+                    .put("goalSteps", quest.goalSteps)
+                    .put("xpReward", quest.xpReward)
+                    .put("goldReward", quest.goldReward)
+                    .put("itemReward", quest.itemReward)
+                    .put("rarity", quest.rarity)
             )
             p[key("quests")] = array.toString()
         }

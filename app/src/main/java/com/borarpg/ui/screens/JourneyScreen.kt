@@ -18,9 +18,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.borarpg.ui.AdventureState
+import com.borarpg.ui.MissionViewModel
 import com.borarpg.ui.components.ActivityControl
 import com.borarpg.ui.components.GuardianArt
+import com.borarpg.ui.components.MissionProgressCard
 import com.borarpg.ui.theme.*
 
 @Composable
@@ -31,7 +34,9 @@ internal fun JourneyScreen(
     stopActivity: () -> Unit,
     map: () -> Unit,
     profile: () -> Unit,
+    missions: MissionViewModel,
 ) {
+    val mission by missions.state.collectAsStateWithLifecycle()
     val hero = state.hero
     val hp by animateFloatAsState(hero.hp / 1000f, label = "Vida do guardião")
     Column(
@@ -73,6 +78,10 @@ internal fun JourneyScreen(
             Metric("OURO", "${hero.gold}", Modifier.weight(1f))
         }
         ActivityControl(state, startActivity, stopActivity)
+        mission.active?.let {
+            MissionProgressCard(it, mission.busy, missions::claim, missions::cancel)
+        }
+        mission.message?.let { Text(it, color = Lime) }
         Box(
             Modifier.fillMaxWidth()
                 .clip(

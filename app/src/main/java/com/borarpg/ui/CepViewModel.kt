@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.borarpg.data.CepLookupException
 import com.borarpg.data.CepRepository
-import com.borarpg.data.NearbyPlacesRepository
 import com.borarpg.domain.CepLocation
 import com.borarpg.domain.QuestGenerator
 import com.borarpg.domain.QuestPoint
@@ -29,11 +28,10 @@ data class CepState(
 
 class CepViewModel : ViewModel() {
     private val repository = CepRepository()
-    private val places = NearbyPlacesRepository()
+
     private val mutable = MutableStateFlow(CepState())
     val state = mutable.asStateFlow()
     private var request: Job? = null
-    private var objectiveRequest: Job? = null
 
     fun edit(value: String) {
         if (!mutable.value.loading) mutable.update { it.copy(input = value.take(9), error = null) }
@@ -50,7 +48,7 @@ class CepViewModel : ViewModel() {
             mutable.update { it.copy(loading = true, error = null) }
             try {
                 val result = repository.find(input)
-                objectiveRequest?.cancel()
+
                 mutable.update {
                     it.copy(
                         loading = false,
@@ -92,31 +90,14 @@ class CepViewModel : ViewModel() {
     }
 
     private fun generateObjectives(target: CepLocation) {
-        objectiveRequest = viewModelScope.launch {
-            mutable.update { it.copy(objectivesLoading = true, objectivesMessage = null) }
-            try {
-                val objectives = QuestGenerator.generate(target, places.find(target))
-                mutable.update {
-                    it.copy(
-                        objectives = objectives,
-                        objectivesLoading = false,
-                        objectivesMessage =
-                            if (objectives.isEmpty())
-                                "Nenhuma praça ou parque próximo foi encontrado no OpenStreetMap. Você pode marcar seus próprios locais."
-                            else "${objectives.size} objetivos em até 2 km do CEP · OpenStreetMap",
-                    )
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                mutable.update {
-                    it.copy(
-                        objectivesLoading = false,
-                        objectivesMessage =
-                            "Não foi possível buscar locais próximos. Tente gerar os objetivos novamente.",
-                    )
-                }
-            }
+        val objectives = QuestGenerator.generate(target)
+        mutable.update {
+            it.copy(
+                objectives = objectives,
+                objectivesLoading = false,
+                objectivesMessage =
+                    "${objectives.size} encontros virtuais em até 1 km do CEP. Aceite uma missão para ganhar XP, ouro e itens.",
+            )
         }
     }
 }

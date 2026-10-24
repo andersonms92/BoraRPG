@@ -8,36 +8,53 @@ class QuestGeneratorTest {
     private val center = CepLocation("01310-100", "São Paulo", -23.56, -46.65)
 
     @Test
-    fun onlyUsesRealCandidatesWithinRadius() {
-        val near = PublicPlace("node/1", "Praça", -23.561, -46.65)
-        val far = PublicPlace("node/2", "Distante", -24.0, -46.65)
-        val result = QuestGenerator.generate(center, listOf(near, far), Random(1))
-        assertEquals(1, result.size)
-        assertEquals(near.latitude, result.first().latitude, 0.0)
-        assertTrue(result.first().generated)
-    }
-
-    @Test
-    fun limitsCountAndRemovesOverlappingPoints() {
-        val places =
-            (1..20).map { PublicPlace("node/$it", "Praça $it", -23.56 + it * .0008, -46.65) }
-        val result = QuestGenerator.generate(center, places + places.first(), Random(2))
-        assertEquals(6, result.size)
-        assertEquals(result.size, result.map { it.id }.distinct().size)
-    }
-
-    @Test
-    fun emptyCoverageDoesNotInventCoordinates() {
-        assertTrue(QuestGenerator.generate(center, emptyList(), Random(1)).isEmpty())
-    }
-
-    @Test
-    fun supportsDifferentRandomSelections() {
-        val places =
-            (1..18).map { PublicPlace("node/$it", "Praça $it", -23.56 + it * .0008, -46.65) }
-        assertNotEquals(
-            QuestGenerator.generate(center, places, Random(1)),
-            QuestGenerator.generate(center, places, Random(9)),
+    fun generatesSixUniqueRewardingEncounters() {
+        val quests = QuestGenerator.generate(center, Random(1))
+        assertEquals(6, quests.size)
+        assertEquals(6, quests.map { it.id }.distinct().size)
+        assertTrue(
+            quests.all {
+                it.goalSteps > 0 &&
+                    it.xpReward > 0 &&
+                    it.goldReward > 0 &&
+                    it.itemReward.isNotBlank()
+            }
         )
+        assertEquals(setOf("Combate", "Exploração"), quests.map { it.kind }.toSet())
+    }
+
+    @Test
+    fun placesStayNearThePostalCode() {
+        QuestGenerator.generate(center, Random(2)).forEach {
+            assertTrue(kotlin.math.abs(it.latitude - center.latitude) < .01)
+            assertTrue(kotlin.math.abs(it.longitude - center.longitude) < .011)
+        }
+    }
+
+    @Test
+    fun rarerEncountersHaveLargerGoalsAndRewards() {
+        val quests = QuestGenerator.generate(center, Random(3))
+        val common = quests.first { it.rarity == "Comum" }
+        val epic = quests.first { it.rarity == "Épico" }
+        assertTrue(epic.goalSteps > common.goalSteps)
+        assertTrue(epic.xpReward > common.xpReward)
+        assertTrue(epic.goldReward > common.goldReward)
+    }
+
+    @Test
+    fun anotherRollChangesThePositions() {
+        assertNotEquals(
+            QuestGenerator.generate(center, Random(1)).map { it.latitude },
+            QuestGenerator.generate(center, Random(2)).map { it.latitude },
+        )
+    }
+
+    @Test
+    fun progressOnlyUsesStepsAfterAcceptance() {
+        val quest = QuestGenerator.generate(center, Random(1)).first()
+        assertEquals(0, MissionProgress(quest, 10000, 10000).steps)
+        assertFalse(MissionProgress(quest, 10000, 10000).ready)
+        assertTrue(MissionProgress(quest, 10000, 10000 + quest.goalSteps).ready)
+        assertEquals(quest.goalSteps, MissionProgress(quest, 10000, 50000).steps)
     }
 }

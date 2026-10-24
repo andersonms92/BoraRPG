@@ -16,7 +16,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val adventure: AdventureViewModel = viewModel(factory = factory)
             val player: PlayerViewModel = viewModel(factory = factory)
-            AdventureApp(adventure, player)
+            val missions: MissionViewModel = viewModel(factory = factory)
+            AdventureApp(adventure, player, missions)
         }
     }
 }
