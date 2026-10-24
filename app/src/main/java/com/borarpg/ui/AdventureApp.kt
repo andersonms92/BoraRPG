@@ -19,20 +19,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.borarpg.ui.map.WorldMap
-import com.borarpg.ui.screens.*
-import com.borarpg.ui.theme.*
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.borarpg.core.designsystem.*
+import com.borarpg.feature.activity.WorldMap
+import com.borarpg.feature.backpack.BackpackRoute
+import com.borarpg.feature.journey.JourneyRoute
+import com.borarpg.feature.missions.MissionViewModel
+import com.borarpg.feature.profile.ProfileRoute
 
 @Composable
-fun AdventureApp(
-    adventure: AdventureViewModel,
-    player: PlayerViewModel,
-    missions: MissionViewModel,
-) {
-    val state by adventure.state.collectAsStateWithLifecycle()
-    val profile by player.profile.collectAsStateWithLifecycle()
-    val cep: CepViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+fun AdventureApp() {
+    val missions: MissionViewModel = hiltViewModel()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     BoraTheme {
         Scaffold(
@@ -92,18 +89,10 @@ fun AdventureApp(
             Box(Modifier.fillMaxSize().padding(padding)) {
                 AnimatedContent(targetState = tab, label = "Navegação") { page ->
                     when (page) {
-                        0 ->
-                            JourneyScreen(
-                                state,
-                                profile.draft.name,
-                                { tab = 1 },
-                                { tab = 1 },
-                                { tab = 3 },
-                                missions,
-                            )
-                        1 -> WorldMap(player, missions, cep)
-                        2 -> BackpackScreen(state.hero, missions)
-                        3 -> ProfileScreen(player, state.hero)
+                        0 -> JourneyRoute(missions, { tab = 1 }, { tab = 3 })
+                        1 -> WorldMap(missions = missions)
+                        2 -> BackpackRoute(missions)
+                        3 -> ProfileRoute()
                     }
                 }
             }
