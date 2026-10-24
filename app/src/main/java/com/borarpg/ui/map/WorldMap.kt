@@ -11,6 +11,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -181,12 +182,33 @@ fun WorldMap(player: PlayerViewModel) {
                     Icon(Icons.Outlined.MyLocation, "Centralizar na minha posição")
                 }
             }
+            FilledTonalButton(
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                enabled = !cep.objectivesLoading,
+                shape = RoundedCornerShape(18.dp),
+                onClick = {
+                    if (cep.target == null) showCep = true
+                    else {
+                        selectedId = null
+                        cepViewModel.regenerateObjectives()
+                    }
+                },
+            ) {
+                Icon(Icons.Outlined.Refresh, null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (cep.objectivesLoading) "Buscando objetivos…" else "Novos objetivos")
+            }
             Surface(
                 shape = RoundedCornerShape(26.dp),
                 color = Ink.copy(alpha = .97f),
                 tonalElevation = 6.dp,
             ) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    Modifier.heightIn(max = 280.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     if (selected != null) {
                         Eyebrow(
                             if (selected.generated) "Objetivo gerado pelo CEP"
@@ -272,14 +294,6 @@ fun WorldMap(player: PlayerViewModel) {
                                     color = Muted,
                                     style = MaterialTheme.typography.bodySmall,
                                 )
-                            }
-                            TextButton(
-                                enabled = !cep.objectivesLoading,
-                                onClick = cepViewModel::regenerateObjectives,
-                            ) {
-                                Icon(Icons.Outlined.Refresh, null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Novos objetivos")
                             }
                         }
                         Text(
