@@ -1,6 +1,6 @@
 # BoraRPG
 
-App Android de aventura por movimento, em Kotlin, Jetpack Compose e MVVM.
+App Android de aventura por movimento, em Kotlin, Jetpack Compose e MVVM. Dados locais em Room e DataStore.
 
 ## Executar
 
@@ -10,44 +10,46 @@ Abra no Android Studio e execute o módulo app. Requer SDK 37 e JDK compatível 
 .\gradlew.bat testDebugUnitTest assembleDebug lintDebug
 ```
 
-## Atividades e RPG
+Os testes instrumentados usam o runner AndroidJUnitRunner. Execute-os selecionando um emulador ou aparelho de teste.
 
-A jornada registra caminhada e corrida pelo contador de passos do aparelho. O usuário inicia e encerra a atividade; um serviço em primeiro plano mantém a contagem com a tela bloqueada e oferece a ação de encerrar na notificação.
+## Atividade
 
-A primeira leitura define a referência da sessão. Passos anteriores e passos feitos entre sessões não são contabilizados. Cada passo registrado causa dano; cada dez passos concedem um XP. Uma vitória concede 50 XP adicionais, 25 de ouro e um fragmento. Dano excedente continua no próximo encontro, e lotes diferentes do sensor produzem as mesmas recompensas.
+A aba Atividade permite escolher caminhada ou corrida, iniciar, pausar, retomar, cancelar e finalizar. O mapa mostra o percurso GPS, a posição e os objetivos; o painel mostra tempo ativo, distância e kcal estimadas. Após finalizar, escolha Salvar resultado ou Descartar. Os percursos salvos podem ser consultados na mesma aba, inclusive após reiniciar o app.
 
-Aparelhos sem contador compatível mostram indisponibilidade. Não há gerador artificial de passos, estimativa de distância por passos, gravação de trajetos ou registro de ciclismo. A atividade não reinicia automaticamente após o processo ser encerrado pelo sistema.
+O serviço em primeiro plano mantém o registro com a tela bloqueada. Pausar interrompe tempo, GPS e contagem de passos; retomar cria um novo segmento, sem ligar o deslocamento durante a pausa. Cancelar descarta o resultado e o percurso, preservando os passos e recompensas já registrados na jornada. Uma interrupção do processo deixa a sessão recuperável como pausada, a partir do último registro persistido; ela não reinicia automaticamente.
 
-O banco Room preserva o progresso real. A migração da versão 1 para a 2 remove somente o progresso da jornada, que era gerado por simulações. Perfil e objetivos pessoais, armazenados em DataStore, são preservados.
+A distância vem do GPS, com descarte de pontos antigos, imprecisos, deslocamentos mínimos e saltos incompatíveis com a modalidade. Lacunas de mais de um minuto abrem outro segmento. Isso pode subestimar trechos sem sinal; precisão e consumo de bateria precisam de validação em aparelho físico, ao ar livre.
 
-## Perfil
+A localização precisa e o GPS ativo são necessários para iniciar. O sensor de passos é opcional para o percurso; sem ele, missões por passos não avançam. Não há geração artificial de passos ou distância.
 
-Nome, peso, altura e idade são validados e salvos localmente. As medidas ainda não alteram a prescrição de atividade ou as recompensas.
+## Calorias e perfil
 
-## Território
+Nome, peso, altura e idade são validados e salvos no aparelho. Cada atividade conserva o peso informado no momento do início. Sem peso válido, a estimativa de calorias fica indisponível.
 
-MapLibre Native e OpenFreeMap renderizam o mapa online. Não há pontos pré-cadastrados nem posição inicial representando o usuário. O mapa é centralizado pelo GPS ou por consulta de CEP à BrasilAPI. As coordenadas por CEP são aproximadas; a consulta pode retornar endereço sem coordenadas.
+A estimativa usa MET × peso em kg × horas ativas: 3,8 MET para caminhada e 8,5 MET para corrida. São intensidades de referência, sem medição individual de esforço; inclinação, ritmo e condicionamento alteram o gasto real. O app mostra kcal totais e médias por metro e quilômetro do percurso registrado. Sem deslocamento registrado, mostra zero. Referências: [Compêndio de atividades físicas](https://pacompendium.com/), [caminhada](https://pacompendium.com/walking/) e [corrida](https://pacompendium.com/running/).
 
-Segure o mapa para salvar um objetivo pessoal; toque para consultar ou remover. Ao consultar um CEP, o app sorteia até seis objetivos de exploração em locais cadastrados no OpenStreetMap, em um raio de 2 km. O botão Novos objetivos sorteia novamente entre os candidatos disponíveis, usando cache durante a sessão. Os locais gerados podem ser salvos para permanecerem após reiniciar. A consulta exclui acessos explicitamente privados ou restritos, mas os dados do mapa não garantem acesso ou horários atuais. Regiões sem cobertura e falhas de rede têm mensagens próprias. Os objetivos ainda não concedem recompensas de visita.
+## Objetivos e RPG
 
-A localização do mapa é coletada somente com a área aberta e o app em primeiro plano. O contador de passos da atividade é independente do GPS. O provedor de mapas recebe as requisições da região visualizada; a BrasilAPI recebe o CEP consultado, e a Overpass API recebe as coordenadas da região para buscar os locais próximos. Não há envio do perfil para um servidor próprio.
+Informe um CEP na aba Território para gerar seis encontros virtuais em até 1 km do centro aproximado. Novos objetivos sorteia novamente posições, metas e recompensas de raridade comum, rara ou épica. Os marcadores mostram XP, ouro e itens; não dependem de uma consulta de pontos de interesse externos. Salve um encontro para mantê-lo no catálogo ou aceite uma missão, que permanece ativa após reiniciar.
 
-## Organização
+Aceitar uma missão inicia uma meta de passos futuros. Os passos reais registrados durante atividades avançam a meta. Ao concluí-la, resgate XP, ouro e um item na mochila; o banco impede resgate duplicado. Há uma missão ativa por vez. Os encontros são virtuais: não é necessário entrar no terreno indicado pelo marcador.
 
-- `domain`: modelos, validações e regras puras.
-- `data`: Room, DataStore e acesso a fontes externas.
-- `tracking`: serviço de contagem de passos.
+Cada passo registrado também causa dano no combate da jornada; cada dez passos concedem um XP. Uma vitória concede 50 XP, 25 de ouro e um fragmento. A primeira leitura do sensor estabelece a referência; passos anteriores à atividade ou feitos durante pausas não entram na contagem.
+
+## Território e dados
+
+MapLibre Native e OpenFreeMap renderizam o mapa online. O GPS ou a busca de CEP pela BrasilAPI centralizam a região; coordenadas de CEP são aproximadas e nem todo endereço possui coordenadas. Segure o mapa para salvar um local pessoal.
+
+Perfil, progresso, missões, inventário e percursos ficam no aparelho. Não há API própria ou sincronização entre dispositivos. O provedor de mapas recebe a região visualizada e a BrasilAPI recebe o CEP consultado. Não há mais consultas à Overpass API. A localização de visualização do Território só é coletada enquanto a tela está aberta; durante uma atividade, o serviço mantém a coleta GPS até pausar ou finalizar.
+
+A migração Room 1→2 remove apenas o progresso simulado antigo. As migrações 2→3 e 3→4 acrescentam missões, inventário e atividades, preservando o progresso real.
+
+## Organização e validação
+
+- `domain`: modelos, relógio, distância, calorias e regras puras.
+- `data`: Room, DataStore, migrações e acesso a fontes externas.
+- `tracking`: serviço GPS e contador de passos.
 - `di`: composição das dependências.
-- `ui/screens`: telas da jornada, mochila e perfil.
-- `ui/map`: território, integração nativa e diálogo de CEP.
-- `ui/components` e `ui/theme`: componentes e identidade visual.
+- `ui/screens`, `ui/map`, `ui/components`, `ui/theme`: telas, mapas e identidade visual.
 
-## Testes
-
-Os testes cobrem combate, recompensas, validação de perfil e CEP, leitura inicial do sensor, leituras duplicadas, reinício do contador, separação entre sessões e equivalência de lotes. Precisão e consumo de bateria devem ser validados em aparelho físico compatível.
-
-Referências: https://developer.android.com/develop/sensors-and-location/sensors/sensors_motion , https://openfreemap.org/quick_start/ e https://brasilapi.com.br/docs .
-
-## Tempo de atividade
-O cronômetro na Jornada começa ao iniciar uma atividade e termina ao encerrá-la, incluindo o período com a tela bloqueada. A notificação também exibe o tempo em andamento. A duração da última atividade encerrada é salva localmente. O contador usa tempo monotônico para não depender de alterações no relógio do aparelho. Uma atividade interrompida pelo encerramento do processo não é retomada automaticamente.
-O botão Novos objetivos fica sempre visível acima do painel inferior do Território; sem um CEP selecionado, abre a busca por CEP.
+Os testes unitários cobrem combate, recompensas, perfil, CEP, geração de objetivos, sensor, pausas, distância e calorias. Os testes instrumentados verificam persistência do percurso após reabrir o banco, recuperação de sessão, migração 2→4 e resgate único de recompensas.
