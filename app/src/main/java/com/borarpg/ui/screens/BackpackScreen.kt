@@ -55,7 +55,7 @@ internal fun BackpackScreen(hero: Hero, missions: MissionViewModel) {
             color = Muted,
         )
         if (mission.inventory.isEmpty())
-            Text("Complete uma missão no Território para ganhar itens.", color = Muted)
+            Text("Complete uma missão na Atividade para ganhar itens.", color = Muted)
         mission.inventory.forEach { item ->
             Equipment(
                 Icons.Outlined.AutoAwesome,

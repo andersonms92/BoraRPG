@@ -45,6 +45,8 @@ internal fun NativeWorldMap(
     onReady: () -> Unit,
     route: List<RoutePoint> = emptyList(),
     fitRoute: Boolean = false,
+    topInset: Int = 0,
+    bottomInset: Int = 0,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -248,6 +250,15 @@ internal fun NativeWorldMap(
             ready = false
         }
     }
+    LaunchedEffect(ready, topInset, bottomInset) {
+        if (ready)
+            map?.setPadding(
+                0,
+                topInset,
+                0,
+                bottomInset.coerceAtMost((view.height - topInset - 100).coerceAtLeast(0)),
+            )
+    }
     LaunchedEffect(objectivesSource, quests) {
         objectivesSource?.setGeoJson(questFeatures(quests))
     }
@@ -280,9 +291,13 @@ internal fun NativeWorldMap(
                         CameraUpdateFactory.newLatLngBounds(
                             bounds,
                             (24 * density).toInt().coerceAtMost(view.width / 8),
-                            (170 * density).toInt().coerceAtMost(view.height / 4),
+                            (if (topInset > 0) 24 * density else 170 * density)
+                                .toInt()
+                                .coerceAtMost(view.height / 4),
                             (24 * density).toInt().coerceAtMost(view.width / 8),
-                            (350 * density).toInt().coerceAtMost(view.height / 2),
+                            (if (bottomInset > 0) 24 * density else 350 * density)
+                                .toInt()
+                                .coerceAtMost(view.height / 2),
                         )
                     )
                     return@LaunchedEffect

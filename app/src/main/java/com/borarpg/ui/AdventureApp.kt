@@ -46,12 +46,11 @@ fun AdventureApp(
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
-                        val names = listOf("Jornada", "Atividade", "Território", "Mochila", "Você")
+                        val names = listOf("Jornada", "Atividade", "Mochila", "Você")
                         val icons =
                             listOf(
                                 Icons.Outlined.Explore,
                                 Icons.AutoMirrored.Outlined.DirectionsRun,
-                                Icons.Outlined.Map,
                                 Icons.Outlined.Backpack,
                                 Icons.Outlined.Person,
                             )
@@ -98,14 +97,13 @@ fun AdventureApp(
                                 state,
                                 profile.draft.name,
                                 { tab = 1 },
-                                { tab = 2 },
-                                { tab = 4 },
+                                { tab = 1 },
+                                { tab = 3 },
                                 missions,
                             )
-                        1 -> WorkoutScreen(player, missions, cep)
-                        2 -> WorldMap(player, missions, cep)
-                        3 -> BackpackScreen(state.hero, missions)
-                        4 -> ProfileScreen(player, state.hero)
+                        1 -> WorldMap(player, missions, cep)
+                        2 -> BackpackScreen(state.hero, missions)
+                        3 -> ProfileScreen(player, state.hero)
                     }
                 }
             }

@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.*
@@ -31,7 +32,9 @@ import com.borarpg.domain.QuestPoint
 import com.borarpg.ui.CepViewModel
 import com.borarpg.ui.MissionViewModel
 import com.borarpg.ui.PlayerViewModel
+import com.borarpg.ui.WorkoutViewModel
 import com.borarpg.ui.components.MissionProgressCard
+import com.borarpg.ui.components.WorkoutPanel
 import com.borarpg.ui.theme.*
 import java.util.UUID
 import kotlinx.coroutines.flow.flowOf
@@ -45,7 +48,16 @@ fun WorldMap(
     player: PlayerViewModel,
     missions: MissionViewModel,
     cepViewModel: CepViewModel = viewModel(),
+    workoutViewModel: WorkoutViewModel = viewModel(),
 ) {
+    val workouts by workoutViewModel.workouts.collectAsStateWithLifecycle()
+    val tracking by workoutViewModel.tracking.collectAsStateWithLifecycle()
+    val currentWorkout = workouts.firstOrNull { it.status != "saved" }
+    var historyId by rememberSaveable { mutableStateOf<String?>(null) }
+    val displayedWorkout =
+        currentWorkout ?: workouts.firstOrNull { it.id == historyId } ?: workouts.firstOrNull()
+    val route = remember(displayedWorkout?.routeJson) { displayedWorkout?.points() ?: emptyList() }
+    var showDetails by rememberSaveable { mutableStateOf(false) }
     val mission by missions.state.collectAsStateWithLifecycle()
     val cep by cepViewModel.state.collectAsStateWithLifecycle()
     var showCep by rememberSaveable { mutableStateOf(false) }
@@ -94,6 +106,8 @@ fun WorldMap(
     var follow by rememberSaveable { mutableStateOf(true) }
     var recenter by remember { mutableIntStateOf(0) }
     var mapError by remember { mutableStateOf<String?>(null) }
+    var topInset by remember { mutableIntStateOf(0) }
+    var bottomInset by remember { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(true) }
     LaunchedEffect(cep.revision) {
         if (cep.target != null) {
@@ -105,10 +119,18 @@ fun WorldMap(
     Box(Modifier.fillMaxSize()) {
         NativeWorldMap(
             visible,
-            gps.location,
+            if (currentWorkout?.status == "active") tracking.location ?: gps.location
+            else if (historyId != null || currentWorkout != null)
+                route.lastOrNull()?.let { point ->
+                    android.location.Location("route").apply {
+                        latitude = point.latitude
+                        longitude = point.longitude
+                    }
+                } ?: gps.location
+            else gps.location,
             follow,
             recenter,
-            cep.target,
+            cep.target.takeIf { historyId == null && currentWorkout == null },
             cep.revision,
             cep.objectives,
             onGesture = { follow = false },
@@ -122,10 +144,16 @@ fun WorldMap(
                 if (it != null) loading = false
             },
             onReady = { loading = false },
+            topInset = topInset,
+            bottomInset = bottomInset,
+            route = route,
+            fitRoute =
+                historyId != null && currentWorkout == null || currentWorkout?.status == "draft",
         )
         if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Lime)
         Column(
             Modifier.align(Alignment.TopStart)
+                .onSizeChanged { topInset = it.height }
                 .fillMaxWidth()
                 .background(Ink.copy(alpha = .94f))
                 .statusBarsPadding()
@@ -137,7 +165,7 @@ fun WorldMap(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Território", style = MaterialTheme.typography.headlineLarge)
+                Text("Atividade", style = MaterialTheme.typography.headlineLarge)
                 Tag("${visible.size} LOCAIS")
             }
             Row(
@@ -158,6 +186,7 @@ fun WorldMap(
         }
         Column(
             Modifier.align(Alignment.BottomCenter)
+                .onSizeChanged { bottomInset = it.height }
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 12.dp),
@@ -213,175 +242,212 @@ fun WorldMap(
                 tonalElevation = 6.dp,
             ) {
                 Column(
-                    Modifier.heightIn(max = 280.dp)
+                    Modifier.heightIn(max = 340.dp)
                         .verticalScroll(rememberScrollState())
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    if (selected != null) {
-                        Eyebrow(
-                            if (selected.generated) "Objetivo gerado pelo CEP"
-                            else "Seu objetivo de exploração",
-                            Coral,
-                        )
-                        Text(selected.title, style = MaterialTheme.typography.titleLarge)
-                        if (selected.description.isNotBlank())
-                            Text(selected.description, color = Lime)
-                        if (selected.goalSteps > 0) {
-                            Tag("${selected.rarity} · ${selected.goalSteps} passos")
+                    WorkoutPanel(
+                        workoutViewModel,
+                        currentWorkout,
+                        displayedWorkout,
+                        workouts,
+                        onFollow = {
+                            historyId = null
+                            follow = true
+                            recenter++
+                            permission = granted()
+                        },
+                        onHistory = { result ->
+                            historyId = result.id
+                            follow = false
+                            recenter++
+                        },
+                    )
+                    if (selected == null) {
+                        mission.active?.let { active ->
                             Text(
-                                "+${selected.xpReward} XP · ${selected.goldReward} ouro",
+                                "${active.quest.title} · ${active.steps}/${active.quest.goalSteps} passos",
                                 color = Lime,
+                                style = MaterialTheme.typography.labelMedium,
                             )
-                            Text("Item: ${selected.itemReward}", color = Coral)
-                            if (mission.active?.quest?.id == selected.id) {
-                                MissionProgressCard(
-                                    mission.active!!,
-                                    mission.busy,
-                                    missions::claim,
-                                    missions::cancel,
-                                )
-                            } else {
-                                Button(
-                                    enabled = !mission.busy && mission.active == null,
-                                    onClick = { missions.accept(selected) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text("Aceitar missão")
+                            if (active.ready)
+                                Button(onClick = missions::claim, enabled = !mission.busy) {
+                                    Text("Resgatar recompensas")
                                 }
-                                if (mission.active != null)
-                                    Text(
-                                        "Conclua ou cancele a missão ativa na Jornada.",
-                                        color = Muted,
-                                    )
-                            }
                         }
-                        val reference =
-                            cep.target?.let { LatLng(it.latitude, it.longitude) }
-                                ?: gps.location?.let { LatLng(it.latitude, it.longitude) }
-                        val distance = reference?.let { loc ->
-                            FloatArray(1)
-                                .also {
-                                    android.location.Location.distanceBetween(
-                                        loc.latitude,
-                                        loc.longitude,
-                                        selected.latitude,
-                                        selected.longitude,
-                                        it,
-                                    )
-                                }[0]
+                        TextButton(onClick = { showDetails = !showDetails }) {
+                            Text(if (showDetails) "Ocultar detalhes" else "Objetivos e região")
                         }
-                        Text(
-                            if (distance == null)
-                                "${selected.kind} · ative o GPS para ver a distância"
-                            else
-                                "${selected.kind} · ${if (distance < 1000) "${distance.toInt()} m" else "%.1f km".format(distance / 1000)} em linha reta${if (cep.target != null) " a partir do CEP" else " pelo GPS"}",
-                            color = Muted,
-                        )
-                        Text(
-                            if (selected.generated && selected.goalSteps > 0)
-                                "Encontro virtual: a meta é de passos. Não é necessário entrar no terreno indicado pelo marcador."
-                            else if (selected.generated) "Local salvo anteriormente."
-                            else "Local marcado por você. Visite apenas áreas de acesso público.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Muted,
-                        )
-                        Row {
-                            TextButton(onClick = { selectedId = null }) { Text("Fechar") }
-                            TextButton(
-                                onClick = {
-                                    if (savedQuests.any { it.id == selected.id })
-                                        player.deleteQuest(selected.id)
-                                    else player.addQuest(selected)
-                                    selectedId = null
-                                }
-                            ) {
-                                Text(
-                                    if (savedQuests.any { it.id == selected.id })
-                                        "Remover dos salvos"
-                                    else "Salvar local"
-                                )
-                            }
-                        }
-                    } else {
-                        Eyebrow(
-                            if (cep.target != null) "Região por CEP · GPS não acompanha"
-                            else if (permission && gps.location != null) "Localização conectada"
-                            else "Explore no seu ritmo"
-                        )
-                        Text(
-                            cep.target?.let { "CEP ${it.cep}" } ?: gps.message,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        cep.target?.let {
-                            Text(
-                                it.address,
-                                color = Muted,
-                                style = MaterialTheme.typography.bodySmall,
+                    }
+                    if (selected != null || showDetails) {
+                        if (selected != null) {
+                            Eyebrow(
+                                if (selected.generated) "Objetivo gerado pelo CEP"
+                                else "Seu objetivo de exploração",
+                                Coral,
                             )
-                            if (cep.objectivesLoading) {
-                                LinearProgressIndicator(Modifier.fillMaxWidth())
+                            Text(selected.title, style = MaterialTheme.typography.titleLarge)
+                            if (selected.description.isNotBlank())
+                                Text(selected.description, color = Lime)
+                            if (selected.goalSteps > 0) {
+                                Tag("${selected.rarity} · ${selected.goalSteps} passos")
                                 Text(
-                                    "Procurando locais próximos…",
-                                    color = Muted,
-                                    style = MaterialTheme.typography.bodySmall,
+                                    "+${selected.xpReward} XP · ${selected.goldReward} ouro",
+                                    color = Lime,
                                 )
-                            }
-                            cep.objectivesMessage?.let { message ->
-                                Text(
-                                    message,
-                                    color = Muted,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                        }
-                        Text(
-                            "Toque nos pontos para explorar. Segure o mapa para marcar um objetivo pessoal.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Muted,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            if (!permission)
-                                TextButton(
-                                    onClick = {
-                                        if (requested)
-                                            context.startActivity(
-                                                Intent(
-                                                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                                    android.net.Uri.parse(
-                                                        "package:${context.packageName}"
-                                                    ),
-                                                )
-                                            )
-                                        else
-                                            launcher.launch(
-                                                arrayOf(
-                                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                                                )
-                                            )
+                                Text("Item: ${selected.itemReward}", color = Coral)
+                                if (mission.active?.quest?.id == selected.id) {
+                                    MissionProgressCard(
+                                        mission.active!!,
+                                        mission.busy,
+                                        missions::claim,
+                                        missions::cancel,
+                                    )
+                                } else {
+                                    Button(
+                                        enabled = !mission.busy && mission.active == null,
+                                        onClick = { missions.accept(selected) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text("Aceitar missão")
                                     }
-                                ) {
-                                    Text(if (requested) "Permissões" else "Ativar GPS")
-                                }
-                            else if (gps.location == null)
-                                TextButton(
-                                    onClick = {
-                                        context.startActivity(
-                                            Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                                    if (mission.active != null)
+                                        Text(
+                                            "Conclua ou cancele a missão ativa.",
+                                            color = Muted,
                                         )
+                                }
+                            }
+                            val reference =
+                                cep.target?.let { LatLng(it.latitude, it.longitude) }
+                                    ?: gps.location?.let { LatLng(it.latitude, it.longitude) }
+                            val distance = reference?.let { loc ->
+                                FloatArray(1)
+                                    .also {
+                                        android.location.Location.distanceBetween(
+                                            loc.latitude,
+                                            loc.longitude,
+                                            selected.latitude,
+                                            selected.longitude,
+                                            it,
+                                        )
+                                    }[0]
+                            }
+                            Text(
+                                if (distance == null)
+                                    "${selected.kind} · ative o GPS para ver a distância"
+                                else
+                                    "${selected.kind} · ${if (distance < 1000) "${distance.toInt()} m" else "%.1f km".format(distance / 1000)} em linha reta${if (cep.target != null) " a partir do CEP" else " pelo GPS"}",
+                                color = Muted,
+                            )
+                            Text(
+                                if (selected.generated && selected.goalSteps > 0)
+                                    "Encontro virtual: a meta é de passos. Não é necessário entrar no terreno indicado pelo marcador."
+                                else if (selected.generated) "Local salvo anteriormente."
+                                else
+                                    "Local marcado por você. Visite apenas áreas de acesso público.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Muted,
+                            )
+                            Row {
+                                TextButton(onClick = { selectedId = null }) { Text("Fechar") }
+                                TextButton(
+                                    onClick = {
+                                        if (savedQuests.any { it.id == selected.id })
+                                            player.deleteQuest(selected.id)
+                                        else player.addQuest(selected)
+                                        selectedId = null
                                     }
                                 ) {
-                                    Text("Configurar GPS")
+                                    Text(
+                                        if (savedQuests.any { it.id == selected.id })
+                                            "Remover dos salvos"
+                                        else "Salvar local"
+                                    )
                                 }
+                            }
+                        } else {
+                            Eyebrow(
+                                if (cep.target != null) "Região por CEP · GPS não acompanha"
+                                else if (permission && gps.location != null) "Localização conectada"
+                                else "Explore no seu ritmo"
+                            )
+                            Text(
+                                cep.target?.let { "CEP ${it.cep}" } ?: gps.message,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            cep.target?.let {
+                                Text(
+                                    it.address,
+                                    color = Muted,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                                if (cep.objectivesLoading) {
+                                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                                    Text(
+                                        "Procurando locais próximos…",
+                                        color = Muted,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                                cep.objectivesMessage?.let { message ->
+                                    Text(
+                                        message,
+                                        color = Muted,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            }
+                            Text(
+                                "Toque nos pontos para explorar. Segure o mapa para marcar um objetivo pessoal.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Muted,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                if (!permission)
+                                    TextButton(
+                                        onClick = {
+                                            if (requested)
+                                                context.startActivity(
+                                                    Intent(
+                                                        Settings
+                                                            .ACTION_APPLICATION_DETAILS_SETTINGS,
+                                                        android.net.Uri.parse(
+                                                            "package:${context.packageName}"
+                                                        ),
+                                                    )
+                                                )
+                                            else
+                                                launcher.launch(
+                                                    arrayOf(
+                                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                                                    )
+                                                )
+                                        }
+                                    ) {
+                                        Text(if (requested) "Permissões" else "Ativar GPS")
+                                    }
+                                else if (gps.location == null)
+                                    TextButton(
+                                        onClick = {
+                                            context.startActivity(
+                                                Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                                            )
+                                        }
+                                    ) {
+                                        Text("Configurar GPS")
+                                    }
+                            }
+                            Text(
+                                if (quests.isEmpty())
+                                    "Nenhum objetivo salvo. Segure um local no mapa para criar o primeiro."
+                                else "O percurso é gravado durante uma atividade iniciada.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Muted,
+                            )
                         }
-                        Text(
-                            if (quests.isEmpty())
-                                "Nenhum objetivo salvo. Segure um local no mapa para criar o primeiro."
-                            else "GPS somente com o mapa aberto.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Muted,
-                        )
                     }
                     mapError?.let {
                         Text(it, color = Coral, style = MaterialTheme.typography.bodySmall)
