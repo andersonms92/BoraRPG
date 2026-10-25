@@ -62,7 +62,9 @@ A migração Room 1→2 remove apenas o progresso simulado antigo. As migraçõe
 
 As versões das dependências ficam em `gradle/libs.versions.toml`. O KSP 2.3.6 inclui a [correção de bloqueio de JARs em recompilações no Windows](https://github.com/google/ksp/releases/tag/2.3.6). Cada feature possui seu próprio build Gradle, pacote, telas e ViewModels. Jornada, Atividade e Mochila usam a feature Missões; as demais features não dependem umas das outras. Nenhum módulo `core` depende de `feature` ou de `app`.
 
-O Hilt inicializa a aplicação (`@HiltAndroidApp`), a Activity e o serviço (`@AndroidEntryPoint`). Os ViewModels usam `@HiltViewModel`, injeção pelo construtor e `hiltViewModel()` nas rotas Compose. Repositórios e controlador de tracking são singletons; o módulo de banco fornece uma única instância Room e os DAOs. Não há factory manual ou localizador global de banco.
+O Hilt inicializa a aplicação (`@HiltAndroidApp`), a Activity e o serviço (`@AndroidEntryPoint`). Os ViewModels usam `@HiltViewModel`, injeção pelo construtor e `hiltViewModel()` nas rotas Compose. A feature Atividade observa exercícios através do `WorkoutRepository`, que converte os registros Room em `WorkoutSession` do domínio. O ViewModel e as telas não recebem DAOs, entidades Room ou JSON de percursos. Salvar e descartar usam o ID e transições condicionais no banco, preservando os dados mais recentes da sessão.
+
+Repositórios e controlador de tracking são singletons; o módulo de banco fornece uma única instância Room e os DAOs. Não há factory manual ou localizador global de banco.
 
 Os arquivos do banco e do DataStore e a versão 4 do esquema permanecem os mesmos. Modularizar não apaga nem migra novamente o progresso existente. Os esquemas e testes de persistência agora ficam em `core/data`.
 
@@ -79,6 +81,6 @@ Com um emulador ou aparelho de teste selecionado:
 .\gradlew.bat :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest
 ```
 
-Os 30 testes JVM do domínio cobrem combate, recompensas, perfil, CEP, geração de objetivos, sensor, pausas, distância e calorias. Os testes instrumentados de dados verificam persistência do percurso após reabrir o banco, recuperação de sessão, migração 2→4 e resgate único de recompensas. O teste instrumentado do aplicativo verifica a criação dos ViewModels de todas as features através do Hilt na Activity real.
+Os 30 testes JVM do domínio cobrem combate, recompensas, perfil, CEP, geração de objetivos, sensor, pausas, distância e calorias. Os testes instrumentados de dados verificam persistência do percurso após reabrir o banco, recuperação de sessão, migração 2→4 e resgate único de recompensas. Os testes do `WorkoutRepository` verificam o mapeamento para o domínio, as transições permitidas e a preservação dos dados recentes diante de ações antigas da tela. O teste instrumentado do aplicativo verifica a criação dos ViewModels de todas as features através do Hilt na Activity real.
 
 Referências: [Hilt e Gradle](https://dagger.dev/hilt/gradle-setup), [ViewModels com Hilt](https://dagger.dev/hilt/view-model.html) e [Hilt em aplicações com vários módulos](https://developer.android.com/training/dependency-injection/hilt-multi-module).
