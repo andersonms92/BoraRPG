@@ -30,9 +30,15 @@ import com.borarpg.core.designsystem.theme.Muted
 import com.borarpg.core.designsystem.theme.Panel
 import com.borarpg.core.designsystem.theme.Rose
 import com.borarpg.domain.model.hero.Hero
+import com.borarpg.domain.rules.combat.Combat
+import java.text.NumberFormat
 
 @Composable
 internal fun GuardianEncounterCard(hero: Hero) {
+    val numbers = NumberFormat.getIntegerInstance()
+    val victories =
+        if (hero.victories == 1) "1 guardião derrotado"
+        else "${numbers.format(hero.victories)} guardiões derrotados"
     val hp by animateFloatAsState(hero.hp / 1000f, label = "Vida do guardião")
     Surface(shape = RoundedCornerShape(24.dp), color = Panel) {
         Column(
@@ -53,7 +59,7 @@ internal fun GuardianEncounterCard(hero: Hero) {
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        "ENCONTRO ATIVO",
+                        "GUARDIÃO Nº ${numbers.format(hero.victories.toLong() + 1)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = Rose,
                     )
@@ -80,12 +86,17 @@ internal fun GuardianEncounterCard(hero: Hero) {
                 modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
             )
             Text(
-                "Cada passo registrado na atividade causa um ponto de dano.",
+                "$victories · ${numbers.format(hero.steps)} passos registrados",
+                color = Accent,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Text(
+                "Cada passo na atividade causa 1 de dano. Ao derrotar um guardião, outro surge com 1.000 de vida.",
                 color = Muted,
                 style = MaterialTheme.typography.bodySmall,
             )
             Text(
-                "+50 XP · 25 ouro · 1 fragmento por vitória",
+                "+${Combat.VICTORY_XP} XP · ${Combat.VICTORY_GOLD} ouro · 1 fragmento por vitória",
                 style = MaterialTheme.typography.labelMedium,
                 color = Accent,
             )

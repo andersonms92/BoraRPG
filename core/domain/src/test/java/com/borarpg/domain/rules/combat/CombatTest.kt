@@ -24,6 +24,27 @@ class CombatTest {
         assertEquals(0, result.gold)
     }
 
+    @Test
+    fun oneThousandNineHundredNinetySixStepsLeaveFourHpOnSecondGuardian() {
+        val result = Combat.advance(Hero(), 1996)
+        assertEquals(1996, result.steps)
+        assertEquals(1, result.victories)
+        assertEquals(4, result.hp)
+        assertEquals(249, result.xp)
+        assertEquals(25, result.gold)
+    }
+
+    @Test
+    fun finalFourStepsDefeatSecondGuardianAndStartThird() {
+        val first = Combat.advance(Hero(), 1996)
+        val result = Combat.advance(first, 4)
+        assertEquals(2000, result.steps)
+        assertEquals(2, result.victories)
+        assertEquals(1000, result.hp)
+        assertEquals(300, result.xp)
+        assertEquals(50, result.gold)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsNegativeSteps() {
         Combat.advance(Hero(), -1)

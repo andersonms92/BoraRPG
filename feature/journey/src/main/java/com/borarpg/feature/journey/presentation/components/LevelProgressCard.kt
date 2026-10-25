@@ -27,6 +27,7 @@ import java.text.NumberFormat
 
 @Composable
 internal fun LevelProgressCard(hero: Hero) {
+    val numbers = NumberFormat.getIntegerInstance()
     Surface(shape = RoundedCornerShape(24.dp), color = Panel) {
         Row(
             Modifier.fillMaxWidth().padding(18.dp),
@@ -35,7 +36,7 @@ internal fun LevelProgressCard(hero: Hero) {
         ) {
             Box(contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
-                    progress = { hero.xp % 100 / 100f },
+                    progress = { hero.levelProgress },
                     modifier = Modifier.size(64.dp),
                     color = Accent,
                     trackColor = Elevated,
@@ -51,12 +52,17 @@ internal fun LevelProgressCard(hero: Hero) {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("Seu personagem", style = MaterialTheme.typography.labelMedium, color = Muted)
                 Text(
-                    "${NumberFormat.getIntegerInstance().format(hero.xp)} XP conquistados",
+                    "${numbers.format(hero.xp)} XP conquistados",
                     style = MaterialTheme.typography.titleMedium,
                     color = Cream,
                 )
                 Text(
-                    "${100 - hero.xp % 100} XP para o nível ${hero.level + 1}",
+                    "${numbers.format(hero.xpInLevel)} / ${numbers.format(hero.xpForNextLevel)} XP neste nível",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Muted,
+                )
+                Text(
+                    "${numbers.format(hero.xpToNextLevel)} XP para o nível ${hero.level + 1}",
                     style = MaterialTheme.typography.bodySmall,
                     color = Accent,
                 )
