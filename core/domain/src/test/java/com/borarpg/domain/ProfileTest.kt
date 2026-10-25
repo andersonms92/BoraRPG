@@ -5,23 +5,19 @@ import org.junit.Test
 
 class ProfileTest {
     @Test
-    fun acceptsCommaDecimals() {
-        assertTrue(PlayerProfile("Ana", "65,5", "170", "30").errors().isEmpty())
+    fun emptyProfileIsIncomplete() {
+        assertFalse(PlayerProfile().complete)
     }
 
     @Test
-    fun rejectsMissingOrInvalidMeasurements() {
-        val errors = PlayerProfile("", "NaN", "-1", "0").errors()
-        assertEquals(setOf("name", "weight", "height", "age"), errors.keys)
+    fun validMeasurementsAreTyped() {
+        assertTrue(PlayerProfile("Ana", 65.5, 170.0, 30).complete)
     }
 
     @Test
-    fun acceptsBoundaryValues() {
-        assertTrue(PlayerProfile("Ana", "20", "80", "13").errors().isEmpty())
-    }
-
-    @Test
-    fun rejectsNonIntegerAge() {
-        assertTrue(PlayerProfile("Ana", "65", "170", "30.5").errors().containsKey("age"))
+    fun rejectsInvalidMeasurements() {
+        for (weight in listOf(Double.NaN, Double.POSITIVE_INFINITY, 19.0, 401.0)) {
+            assertTrue(runCatching { PlayerProfile("Ana", weight, 170.0, 30) }.isFailure)
+        }
     }
 }

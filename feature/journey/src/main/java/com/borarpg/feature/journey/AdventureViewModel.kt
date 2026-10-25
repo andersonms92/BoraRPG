@@ -2,9 +2,9 @@ package com.borarpg.feature.journey
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.borarpg.data.AdventureRepository
-import com.borarpg.data.PlayerRepository
+import com.borarpg.domain.AdventureRepository
 import com.borarpg.domain.Hero
+import com.borarpg.domain.PlayerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.*

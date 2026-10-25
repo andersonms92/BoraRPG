@@ -2,9 +2,9 @@ package com.borarpg.feature.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.borarpg.data.AdventureRepository
-import com.borarpg.data.PlayerRepository
 import com.borarpg.domain.*
+import com.borarpg.domain.AdventureRepository
+import com.borarpg.domain.PlayerRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 data class ProfileState(
-    val draft: PlayerProfile = PlayerProfile(),
+    val draft: ProfileForm = ProfileForm(),
     val errors: Map<String, String> = emptyMap(),
     val loading: Boolean = true,
     val saving: Boolean = false,
@@ -31,7 +31,11 @@ constructor(private val repository: PlayerRepository, adventure: AdventureReposi
     init {
         viewModelScope.launch {
             try {
-                _profile.value = ProfileState(draft = repository.profile.first(), loading = false)
+                _profile.value =
+                    ProfileState(
+                        draft = ProfileForm.from(repository.profile.first()),
+                        loading = false,
+                    )
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -41,11 +45,12 @@ constructor(private val repository: PlayerRepository, adventure: AdventureReposi
         }
     }
 
-    fun edit(profile: PlayerProfile) {
+    fun edit(profile: ProfileForm) {
         _profile.update { it.copy(draft = profile, errors = emptyMap(), message = null) }
     }
 
     fun save() {
+        if (_profile.value.saving || _profile.value.loading) return
         val draft = _profile.value.draft
         val errors = draft.errors()
         if (errors.isNotEmpty()) {
@@ -55,7 +60,7 @@ constructor(private val repository: PlayerRepository, adventure: AdventureReposi
         viewModelScope.launch {
             _profile.update { it.copy(saving = true) }
             try {
-                repository.save(draft)
+                repository.save(draft.toDomain())
                 _profile.update {
                     it.copy(saving = false, message = "Perfil salvo neste aparelho.")
                 }

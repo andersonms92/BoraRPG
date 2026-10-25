@@ -3,7 +3,6 @@ package com.borarpg.data
 import androidx.room.*
 import com.borarpg.domain.*
 import kotlinx.coroutines.flow.Flow
-import org.json.JSONArray
 
 @Entity(tableName = "workouts")
 data class WorkoutEntity(
@@ -14,31 +13,43 @@ data class WorkoutEntity(
     val distanceMeters: Double = 0.0,
     val weightKg: Double? = null,
     val status: String = "active",
-    val routeJson: String = "[]",
 ) {
-    val mode: WorkoutType
-        get() = WorkoutType.valueOf(type)
-
-    val calories: Double?
-        get() = workoutCalories(mode, weightKg, elapsedMillis, distanceMeters)
-
-    fun points(): List<RoutePoint> {
-        val array = JSONArray(routeJson)
-        return (0 until array.length()).map { i ->
-            val q = array.getJSONArray(i)
-            RoutePoint(q.getDouble(0), q.getDouble(1), q.getLong(2), q.getInt(3))
-        }
-    }
+    fun toDomain(route: List<RoutePoint> = emptyList()) =
+        WorkoutSession(
+            id,
+            WorkoutType.valueOf(type),
+            startedAt,
+            elapsedMillis,
+            distanceMeters,
+            weightKg,
+            WorkoutStatus.valueOf(status.uppercase()),
+            route,
+        )
 }
 
-fun encodeRoute(points: List<RoutePoint>): String =
-    JSONArray()
-        .apply {
-            points.forEach {
-                put(JSONArray().put(it.latitude).put(it.longitude).put(it.time).put(it.segment))
-            }
-        }
-        .toString()
+@Entity(
+    tableName = "workout_points",
+    primaryKeys = ["workoutId", "position"],
+    foreignKeys =
+        [
+            ForeignKey(
+                entity = WorkoutEntity::class,
+                parentColumns = ["id"],
+                childColumns = ["workoutId"],
+                onDelete = ForeignKey.CASCADE,
+            )
+        ],
+)
+data class WorkoutPointEntity(
+    val workoutId: String,
+    val position: Int,
+    val latitude: Double,
+    val longitude: Double,
+    val time: Long,
+    val segment: Int,
+) {
+    fun toDomain() = RoutePoint(latitude, longitude, time, segment)
+}
 
 @Dao
 interface WorkoutDao {
@@ -48,13 +59,24 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE status != 'saved' ORDER BY startedAt DESC LIMIT 1")
     suspend fun current(): WorkoutEntity?
 
+    @Query("SELECT * FROM workouts WHERE id = :id") suspend fun find(id: String): WorkoutEntity?
+
+    @Query("SELECT * FROM workout_points WHERE workoutId = :id ORDER BY position")
+    fun observePoints(id: String): Flow<List<WorkoutPointEntity>>
+
+    @Query("SELECT * FROM workout_points WHERE workoutId = :id ORDER BY position")
+    suspend fun points(id: String): List<WorkoutPointEntity>
+
     @Query("UPDATE workouts SET status = 'saved' WHERE id = :id AND status = 'draft'")
-    suspend fun saveResult(id: String)
+    suspend fun saveResult(id: String): Int
 
     @Query("DELETE FROM workouts WHERE id = :id AND status IN ('draft', 'paused')")
-    suspend fun discard(id: String)
+    suspend fun discard(id: String): Int
 
     @Upsert suspend fun save(workout: WorkoutEntity)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertPoints(points: List<WorkoutPointEntity>)
 
     @Query("DELETE FROM workouts WHERE id = :id") suspend fun delete(id: String)
 

@@ -19,19 +19,20 @@ import org.json.JSONObject
 private val Context.playerStore by preferencesDataStore("player")
 
 @Singleton
-class PlayerRepository @Inject constructor(@ApplicationContext context: Context) {
+class DataStorePlayerRepository @Inject constructor(@ApplicationContext context: Context) :
+    PlayerRepository {
     private val store = context.applicationContext.playerStore
     private val preferences =
         store.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }
-    val profile: Flow<PlayerProfile> = preferences.map {
+    override val profile: Flow<PlayerProfile> = preferences.map {
         PlayerProfile(
             it[key("name")] ?: "",
-            it[key("weight")] ?: "",
-            it[key("height")] ?: "",
-            it[key("age")] ?: "",
+            it[key("weight")]?.replace(',', '.')?.toDoubleOrNull(),
+            it[key("height")]?.replace(',', '.')?.toDoubleOrNull(),
+            it[key("age")]?.toIntOrNull(),
         )
     }
-    val quests: Flow<List<QuestPoint>> = preferences.map { prefs ->
+    override val quests: Flow<List<QuestPoint>> = preferences.map { prefs ->
         val array = JSONArray(prefs[key("quests")] ?: "[]")
         (0 until array.length()).map { index ->
             val q = array.getJSONObject(index)
@@ -52,17 +53,17 @@ class PlayerRepository @Inject constructor(@ApplicationContext context: Context)
         }
     }
 
-    suspend fun save(profile: PlayerProfile) {
-        require(profile.errors().isEmpty())
+    override suspend fun save(profile: PlayerProfile) {
+        require(profile.complete)
         store.edit { p ->
             p[key("name")] = profile.name.trim()
-            p[key("weight")] = profile.weight
-            p[key("height")] = profile.height
-            p[key("age")] = profile.age
+            p[key("weight")] = profile.weightKg.toString()
+            p[key("height")] = profile.heightCm.toString()
+            p[key("age")] = profile.ageYears.toString()
         }
     }
 
-    suspend fun addQuest(quest: QuestPoint) {
+    override suspend fun addQuest(quest: QuestPoint) {
         require(quest.title.isNotBlank() && quest.title.length <= 60)
         require(quest.latitude in -90.0..90.0 && quest.longitude in -180.0..180.0)
         store.edit { p ->
@@ -86,7 +87,7 @@ class PlayerRepository @Inject constructor(@ApplicationContext context: Context)
         }
     }
 
-    suspend fun deleteQuest(id: String) {
+    override suspend fun deleteQuest(id: String) {
         store.edit { p ->
             val old = JSONArray(p[key("quests")] ?: "[]")
             val next = JSONArray()

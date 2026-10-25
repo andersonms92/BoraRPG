@@ -9,30 +9,50 @@ import android.hardware.*
 import android.location.*
 import android.os.*
 import com.borarpg.core.tracking.R
-import com.borarpg.data.*
 import com.borarpg.domain.*
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.first
+
+private sealed interface TrackingCommand {
+    data class Start(val type: WorkoutType) : TrackingCommand
+
+    data object Resume : TrackingCommand
+
+    data object Pause : TrackingCommand
+
+    data object Finish : TrackingCommand
+
+    data object Cancel : TrackingCommand
+
+    data object LocationUnavailable : TrackingCommand
+
+    data object Tick : TrackingCommand
+
+    data class Position(val location: GeoLocation, val timestamp: Long) : TrackingCommand
+
+    data class Steps(val count: Long) : TrackingCommand
+}
 
 @AndroidEntryPoint
 class StepTrackingService : Service(), SensorEventListener, LocationListener {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val commands = Channel<suspend () -> Unit>(Channel.UNLIMITED)
-    @Inject lateinit var dao: WorkoutDao
+    private val commands = Channel<TrackingCommand>(Channel.UNLIMITED)
+    @Inject lateinit var repository: WorkoutRepository
     @Inject lateinit var playerRepository: PlayerRepository
     @Inject lateinit var adventureRepository: AdventureRepository
+    @Inject lateinit var time: WorkoutTimeSource
+    @Inject lateinit var runtime: TrackingRuntime
+    private val manager by lazy {
+        WorkoutSessionManager(repository, playerRepository, adventureRepository, time) {
+            UUID.randomUUID().toString()
+        }
+    }
     private val sensors by lazy { getSystemService(SENSOR_SERVICE) as SensorManager }
     private val locations by lazy { getSystemService(LOCATION_SERVICE) as LocationManager }
-    private var workout: WorkoutEntity? = null
-    private val points = mutableListOf<RoutePoint>()
-    private var counter = StepCounter()
-    private var segment = 0
-    private val clock = WorkoutClock()
-    private var running = false
+    private var registered = false
     private var timer: Job? = null
 
     override fun onCreate() {
@@ -48,131 +68,118 @@ class StepTrackingService : Service(), SensorEventListener, LocationListener {
         scope.launch {
             for (command in commands) {
                 try {
-                    command()
-                } catch (e: CancellationException) {
-                    throw e
+                    when (command) {
+                        is TrackingCommand.Start -> {
+                            ensureLocation()
+                            manager.start(command.type)
+                        }
+                        TrackingCommand.Resume -> {
+                            ensureLocation()
+                            manager.resume()
+                        }
+                        TrackingCommand.Pause -> manager.pause()
+                        TrackingCommand.Finish -> manager.finish()
+                        TrackingCommand.Cancel -> manager.cancel()
+                        TrackingCommand.Tick -> manager.tick()
+                        TrackingCommand.LocationUnavailable -> manager.locationUnavailable()
+                        is TrackingCommand.Position ->
+                            manager.location(command.location, command.timestamp)
+                        is TrackingCommand.Steps -> manager.steps(command.count)
+                    }
+                    runtime.update(manager.state.value)
+                    if (manager.state.value.phase == TrackingPhase.RUNNING) register()
+                    else unregister()
+                    if (!manager.state.value.active) shutdown()
+                } catch (error: CancellationException) {
+                    throw error
                 } catch (_: Exception) {
-                    clock.pause(SystemClock.elapsedRealtime())
-                    running = false
                     unregister()
-                    runCatching { dao.recover() }
-                    TrackingRuntime.update(
-                        TrackingRuntime.state.value.copy(
-                            active = false,
-                            error =
-                                "A atividade foi interrompida. O último percurso gravado pode ser retomado.",
+                    try {
+                        manager.interrupted()
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        runtime.update(
+                            TrackingState(
+                                error = "Não foi possível registrar a atividade. Tente novamente."
+                            )
                         )
-                    )
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf()
+                    }
+                    if (manager.state.value.error != null) runtime.update(manager.state.value)
+                    shutdown()
+                    break
                 }
             }
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val action = intent?.action ?: "start"
+        val action = intent?.action ?: return START_NOT_STICKY
         if (action == "start" || action == "resume") {
             try {
-                val open =
-                    PendingIntent.getActivity(
-                        this,
-                        0,
-                        checkNotNull(packageManager.getLaunchIntentForPackage(packageName)),
-                        PendingIntent.FLAG_IMMUTABLE,
-                    )
-                val notification =
-                    Notification.Builder(this, "walking_activity")
-                        .setSmallIcon(R.drawable.ic_tracking)
-                        .setContentTitle("BoraRPG · percurso em andamento")
-                        .setContentText("Abra o app para pausar ou finalizar.")
-                        .setContentIntent(open)
-                        .setOngoing(true)
-                        .build()
-                if (Build.VERSION.SDK_INT >= 29)
-                    startForeground(100, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-                else startForeground(100, notification)
+                showNotification()
             } catch (_: RuntimeException) {
-                TrackingRuntime.update(
+                runtime.update(
                     TrackingState(error = "Autorize a localização precisa antes de iniciar.")
                 )
                 stopSelf()
                 return START_NOT_STICKY
             }
         }
-        commands.trySend {
+        val command =
             when (action) {
                 "start" ->
-                    if (workout == null) {
-                        check(dao.current() == null) { "Conclua a atividade anterior." }
-                        val weight =
-                            playerRepository.profile
-                                .first()
-                                .weight
-                                .replace(',', '.')
-                                .toDoubleOrNull()
-                        workout =
-                            WorkoutEntity(
-                                UUID.randomUUID().toString(),
-                                intent?.getStringExtra("type") ?: "WALK",
-                                System.currentTimeMillis(),
-                                weightKg = weight,
-                            )
-                        resumeTracking()
-                    }
-                "resume" -> {
-                    if (workout == null)
-                        workout =
-                            dao.current()?.also {
-                                points.addAll(it.points())
-                            }
-                    if (workout?.status == "paused" || workout?.status == "active") resumeTracking()
-                }
-                "pause" ->
-                    if (running) {
-                        clock.pause(SystemClock.elapsedRealtime())
-                        checkpoint("paused")
-                        running = false
-                        unregister()
-                        TrackingRuntime.update(
-                            TrackingRuntime.state.value.copy(active = true, paused = true)
-                        )
-                    }
-                STOP -> {
-                    if (workout == null)
-                        workout =
-                            dao.current()?.also {
-                                points.addAll(it.points())
-                                clock.resume(it.elapsedMillis, SystemClock.elapsedRealtime())
-                                clock.pause(SystemClock.elapsedRealtime())
-                            }
-                    if (workout != null) {
-                        checkpoint("draft")
-                        shutdown()
-                    }
-                }
-                "cancel" -> {
-                    (workout ?: dao.current())?.let { dao.delete(it.id) }
-                    shutdown()
-                }
+                    TrackingCommand.Start(
+                        WorkoutType.entries.firstOrNull { it.name == intent.getStringExtra("type") }
+                            ?: WorkoutType.WALK
+                    )
+                "resume" -> TrackingCommand.Resume
+                "pause" -> TrackingCommand.Pause
+                "finish",
+                STOP -> TrackingCommand.Finish
+                "cancel" -> TrackingCommand.Cancel
+                else -> null
             }
-        }
+        command?.let { commands.trySend(it) }
         return START_NOT_STICKY
     }
 
-    private suspend fun resumeTracking() {
-        if (running) return
+    private fun showNotification() {
+        val open =
+            PendingIntent.getActivity(
+                this,
+                0,
+                checkNotNull(packageManager.getLaunchIntentForPackage(packageName)),
+                PendingIntent.FLAG_IMMUTABLE,
+            )
+        val notification =
+            Notification.Builder(this, "walking_activity")
+                .setSmallIcon(R.drawable.ic_tracking)
+                .setContentTitle("BoraRPG · percurso em andamento")
+                .setContentText("Abra o app para pausar ou finalizar.")
+                .setContentIntent(open)
+                .setOngoing(true)
+                .build()
+        if (Build.VERSION.SDK_INT >= 29)
+            startForeground(100, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        else startForeground(100, notification)
+    }
+
+    private fun ensureLocation() {
         check(
             checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED
         )
         check(locations.isProviderEnabled(LocationManager.GPS_PROVIDER))
-        segment = (points.maxOfOrNull { it.segment } ?: -1) + 1
-        counter = StepCounter()
-        clock.resume(workout!!.elapsedMillis, SystemClock.elapsedRealtime())
-        running = true
-        workout = workout!!.copy(status = "active")
-        dao.save(workout!!)
+    }
+
+    private fun register() {
+        if (registered) return
+        if (
+            checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED
+        )
+            throw SecurityException("Localização precisa indisponível.")
         locations.requestLocationUpdates(
             LocationManager.GPS_PROVIDER,
             3000L,
@@ -189,105 +196,48 @@ class StepTrackingService : Service(), SensorEventListener, LocationListener {
                 sensors.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
             }
         }
-        TrackingRuntime.update(
-            TrackingState(active = true, elapsedMillis = workout!!.elapsedMillis)
-        )
-        timer?.cancel()
+        registered = true
         timer = scope.launch {
             while (isActive) {
                 delay(1000)
-                if (running) {
-                    TrackingRuntime.elapsed(elapsed())
-                    commands.send { if (running) checkpoint("active") }
-                }
+                commands.send(TrackingCommand.Tick)
             }
         }
-    }
-
-    private fun elapsed() = clock.elapsed(SystemClock.elapsedRealtime())
-
-    private suspend fun checkpoint(status: String) {
-        workout =
-            workout?.copy(
-                elapsedMillis = elapsed(),
-                status = status,
-                routeJson = encodeRoute(points),
-            )
-        workout?.let { dao.save(it) }
     }
 
     override fun onLocationChanged(location: Location) {
-        if (!running) return
-        val copy = Location(location)
-        commands.trySend {
-            if (
-                !running ||
-                    !copy.hasAccuracy() ||
-                    copy.accuracy > 35 ||
-                    SystemClock.elapsedRealtimeNanos() - copy.elapsedRealtimeNanos > 15000000000L
+        if (registered && location.hasAccuracy())
+            commands.trySend(
+                TrackingCommand.Position(
+                    GeoLocation(location.latitude, location.longitude, location.accuracy),
+                    location.elapsedRealtimeNanos / 1_000_000,
+                )
             )
-                return@trySend
-            val next =
-                RoutePoint(
-                    copy.latitude,
-                    copy.longitude,
-                    copy.elapsedRealtimeNanos / 1000000,
-                    segment,
-                )
-            val last = points.lastOrNull()?.takeIf { it.segment == segment }
-            var distance = 0.0
-            if (last != null) {
-                val seconds = (next.time - last.time) / 1000.0
-                if (seconds <= 0) return@trySend
-                distance = routeDistance(last, next)
-                if (distance < maxOf(3.0, copy.accuracy * .5)) return@trySend
-                if (seconds > 60) {
-                    segment++
-                    distance = 0.0
-                } else if (
-                    distance / seconds > if (workout!!.mode == WorkoutType.WALK) 4.5 else 12.5
-                )
-                    return@trySend
-            }
-            points.add(next.copy(segment = segment))
-            workout = workout!!.copy(distanceMeters = workout!!.distanceMeters + distance)
-            TrackingRuntime.update(TrackingRuntime.state.value.copy(location = copy))
-            checkpoint("active")
-        }
     }
 
     override fun onSensorChanged(event: SensorEvent) {
         val raw = event.values[0]
-        if (running && raw.isFinite() && raw >= 0)
-            commands.trySend {
-                if (running) {
-                    val delta = counter.record(raw.toLong())
-                    if (delta > 0) adventureRepository.recordSteps(delta)
-                }
-            }
+        if (registered && raw.isFinite() && raw >= 0)
+            commands.trySend(TrackingCommand.Steps(raw.toLong()))
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
     override fun onProviderDisabled(provider: String) {
-        TrackingRuntime.update(
-            TrackingRuntime.state.value.copy(
-                error = "GPS desligado. Ative-o para continuar registrando o percurso."
-            )
-        )
+        if (provider == LocationManager.GPS_PROVIDER)
+            commands.trySend(TrackingCommand.LocationUnavailable)
     }
 
     private fun unregister() {
         locations.removeUpdates(this)
         sensors.unregisterListener(this)
+        registered = false
         timer?.cancel()
+        timer = null
     }
 
     private fun shutdown() {
-        clock.pause(SystemClock.elapsedRealtime())
-        running = false
         unregister()
-        TrackingRuntime.stop(workout?.elapsedMillis ?: 0)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -296,7 +246,7 @@ class StepTrackingService : Service(), SensorEventListener, LocationListener {
         unregister()
         scope.cancel()
         commands.close()
-        TrackingRuntime.stop(workout?.elapsedMillis ?: 0)
+        runtime.update(runtime.state.value.copy(phase = TrackingPhase.IDLE))
         super.onDestroy()
     }
 

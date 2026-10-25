@@ -2,19 +2,17 @@ package com.borarpg.domain
 
 data class PlayerProfile(
     val name: String = "",
-    val weight: String = "",
-    val height: String = "",
-    val age: String = "",
+    val weightKg: Double? = null,
+    val heightCm: Double? = null,
+    val ageYears: Int? = null,
 ) {
-    fun errors(): Map<String, String> = buildMap {
-        if (name.isBlank() || name.trim().length > 40)
-            put("name", "Informe um nome de até 40 caracteres.")
-        val kg = weight.replace(',', '.').toDoubleOrNull()
-        if (kg == null || !kg.isFinite() || kg !in 20.0..400.0)
-            put("weight", "Informe um peso entre 20 e 400 kg.")
-        val cm = height.replace(',', '.').toDoubleOrNull()
-        if (cm == null || !cm.isFinite() || cm !in 80.0..250.0)
-            put("height", "Informe uma altura entre 80 e 250 cm.")
-        if (age.toIntOrNull() !in 13..120) put("age", "Informe uma idade entre 13 e 120 anos.")
+    init {
+        require(name.length <= 40)
+        require(weightKg == null || weightKg.isFinite() && weightKg in 20.0..400.0)
+        require(heightCm == null || heightCm.isFinite() && heightCm in 80.0..250.0)
+        require(ageYears == null || ageYears in 13..120)
     }
+
+    val complete: Boolean
+        get() = name.isNotBlank() && weightKg != null && heightCm != null && ageYears != null
 }

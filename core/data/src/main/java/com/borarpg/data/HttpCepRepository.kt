@@ -1,22 +1,24 @@
 package com.borarpg.data
 
+import com.borarpg.data.di.IoDispatcher
 import com.borarpg.domain.CepLocation
+import com.borarpg.domain.CepLookupException
+import com.borarpg.domain.CepRepository
 import com.borarpg.domain.normalizeCep
-import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-class CepLookupException(message: String) : IOException(message)
-
 @Singleton
-class CepRepository @Inject constructor() {
-    suspend fun find(input: String): CepLocation =
-        withContext(Dispatchers.IO) {
+class HttpCepRepository
+@Inject
+constructor(@param:IoDispatcher private val dispatcher: CoroutineDispatcher) : CepRepository {
+    override suspend fun find(input: String): CepLocation =
+        withContext(dispatcher) {
             val cep =
                 normalizeCep(input)
                     ?: throw CepLookupException("Digite um CEP válido com 8 números.")

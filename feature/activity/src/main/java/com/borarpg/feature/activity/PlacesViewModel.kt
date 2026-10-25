@@ -2,8 +2,8 @@ package com.borarpg.feature.activity
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.borarpg.data.LocationRepository
-import com.borarpg.data.PlayerRepository
+import com.borarpg.domain.LocationRepository
+import com.borarpg.domain.PlayerRepository
 import com.borarpg.domain.QuestPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

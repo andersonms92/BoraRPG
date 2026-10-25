@@ -1,21 +1,12 @@
 package com.borarpg.feature.activity
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.location.LocationManager
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.borarpg.core.designsystem.*
 import com.borarpg.domain.*
 import java.text.SimpleDateFormat
@@ -24,60 +15,17 @@ import java.util.Locale
 
 @Composable
 internal fun WorkoutPanel(
-    vm: WorkoutViewModel,
-    current: WorkoutSession?,
-    displayed: WorkoutSession?,
-    workouts: List<WorkoutSession>,
-    onFollow: () -> Unit,
-    onHistory: (WorkoutSession) -> Unit,
+    state: WorkoutUiState,
+    onAction: (WorkoutAction) -> Unit,
+    requestStart: () -> Unit,
+    onHistory: (String) -> Unit,
 ) {
-    val context = LocalContext.current
-    val tracking by vm.tracking.collectAsStateWithLifecycle()
-    val message by vm.message.collectAsStateWithLifecycle()
-    var mode by rememberSaveable { mutableStateOf(WorkoutType.WALK) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var cancel by remember { mutableStateOf(false) }
-    var history by remember { mutableStateOf(false) }
-    fun start() {
-        if (
-            !context
-                .getSystemService(LocationManager::class.java)
-                .isProviderEnabled(LocationManager.GPS_PROVIDER)
-        ) {
-            error = "Ative o GPS para registrar o percurso."
-            return
-        }
-        if (
-            context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED
-        ) {
-            error = "Autorize a localização precisa para registrar o percurso."
-            return
-        }
-        error = null
-        onFollow()
-        if (current?.status == WorkoutStatus.PAUSED) vm.resume() else vm.start(mode)
-    }
-    val permission =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-            start()
-        }
-    fun requestStart() {
-        val permissions =
-            mutableListOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-            )
-        if (Build.VERSION.SDK_INT >= 29) permissions.add(Manifest.permission.ACTIVITY_RECOGNITION)
-        if (Build.VERSION.SDK_INT >= 33) permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-        permission.launch(permissions.toTypedArray())
-    }
-    val elapsed =
-        if (current?.status == WorkoutStatus.ACTIVE)
-            maxOf(current.elapsedMillis, tracking.elapsedMillis)
-        else displayed?.elapsedMillis ?: 0
-    val distance = displayed?.distanceMeters ?: 0.0
-    val kcal = displayed?.let { workoutCalories(it.mode, it.weightKg, elapsed, distance) }
+    val current = state.current
+    val displayed = state.displayed
+    val mode = state.mode
+    val elapsed = state.elapsedMillis
+    val distance = state.distanceMeters
+    val kcal = state.calories
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
@@ -85,7 +33,10 @@ internal fun WorkoutPanel(
                 style = MaterialTheme.typography.headlineMedium,
                 color = Lime,
             )
-            TextButton(onClick = { history = true }, enabled = current == null) {
+            TextButton(
+                onClick = { onAction(WorkoutAction.ShowHistory) },
+                enabled = current == null,
+            ) {
                 Text("Histórico")
             }
         }
@@ -114,7 +65,7 @@ internal fun WorkoutPanel(
                 WorkoutType.entries.forEach { type ->
                     FilterChip(
                         selected = mode == type,
-                        onClick = { mode = type },
+                        onClick = { onAction(WorkoutAction.SelectMode(type)) },
                         label = { Text(type.label) },
                     )
                 }
@@ -126,16 +77,21 @@ internal fun WorkoutPanel(
                     Button(
                         onClick = {
                             if (current.status == WorkoutStatus.PAUSED) requestStart()
-                            else vm.pause()
+                            else onAction(WorkoutAction.Pause)
                         },
                         modifier = Modifier.weight(1f),
                     ) {
                         Text(if (current.status == WorkoutStatus.PAUSED) "Retomar" else "Pausar")
                     }
-                    OutlinedButton(onClick = vm::finish, modifier = Modifier.weight(1f)) {
+                    OutlinedButton(
+                        onClick = { onAction(WorkoutAction.Finish) },
+                        modifier = Modifier.weight(1f),
+                    ) {
                         Text("Finalizar")
                     }
-                    TextButton(onClick = { cancel = true }) { Text("Cancelar", color = Coral) }
+                    TextButton(onClick = { onAction(WorkoutAction.ShowCancel) }) {
+                        Text("Cancelar", color = Coral)
+                    }
                 }
                 Text(
                     if (current.status == WorkoutStatus.PAUSED) "Atividade pausada"
@@ -146,11 +102,22 @@ internal fun WorkoutPanel(
             }
             WorkoutStatus.DRAFT ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { vm.save(current) }) { Text("Salvar resultado") }
-                    OutlinedButton(onClick = { vm.discard(current) }) { Text("Descartar") }
+                    Button(onClick = { onAction(WorkoutAction.Save) }, enabled = !state.busy) {
+                        Text("Salvar resultado")
+                    }
+                    OutlinedButton(
+                        onClick = { onAction(WorkoutAction.Discard) },
+                        enabled = !state.busy,
+                    ) {
+                        Text("Descartar")
+                    }
                 }
             else ->
-                Button(onClick = { requestStart() }, modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = requestStart,
+                    enabled = !state.loading,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Text("Iniciar ${mode.label.lowercase()}")
                 }
         }
@@ -160,11 +127,14 @@ internal fun WorkoutPanel(
                 style = MaterialTheme.typography.bodySmall,
                 color = Muted,
             )
-        (error ?: tracking.error ?: message)?.let { Text(it, color = Coral) }
+        state.message?.let {
+            Text(it, color = Coral)
+            TextButton(onClick = { onAction(WorkoutAction.Retry) }) { Text("Tentar novamente") }
+        }
     }
-    if (cancel)
+    if (state.showCancel)
         AlertDialog(
-            onDismissRequest = { cancel = false },
+            onDismissRequest = { onAction(WorkoutAction.HideCancel) },
             title = { Text("Cancelar atividade?") },
             text = {
                 Text(
@@ -174,31 +144,33 @@ internal fun WorkoutPanel(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        cancel = false
-                        if (tracking.active) vm.cancel() else current?.let(vm::discard)
+                        onAction(WorkoutAction.HideCancel)
+                        onAction(WorkoutAction.Cancel)
                     }
                 ) {
                     Text("Cancelar atividade")
                 }
             },
-            dismissButton = { TextButton(onClick = { cancel = false }) { Text("Continuar") } },
+            dismissButton = {
+                TextButton(onClick = { onAction(WorkoutAction.HideCancel) }) { Text("Continuar") }
+            },
         )
-    if (history)
+    if (state.showHistory)
         AlertDialog(
-            onDismissRequest = { history = false },
+            onDismissRequest = { onAction(WorkoutAction.HideHistory) },
             title = { Text("Seus percursos") },
             text = {
                 Column(
                     Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    val saved = workouts.filter { it.status == WorkoutStatus.SAVED }
+                    val saved = state.history
                     if (saved.isEmpty()) Text("As atividades salvas aparecerão aqui.")
                     saved.forEach { result ->
                         OutlinedButton(
                             onClick = {
-                                onHistory(result)
-                                history = false
+                                onHistory(result.id)
+                                onAction(WorkoutAction.HideHistory)
                             },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
@@ -209,6 +181,8 @@ internal fun WorkoutPanel(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { history = false }) { Text("Fechar") } },
+            confirmButton = {
+                TextButton(onClick = { onAction(WorkoutAction.HideHistory) }) { Text("Fechar") }
+            },
         )
 }

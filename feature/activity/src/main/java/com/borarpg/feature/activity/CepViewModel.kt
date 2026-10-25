@@ -2,9 +2,9 @@ package com.borarpg.feature.activity
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.borarpg.data.CepLookupException
-import com.borarpg.data.CepRepository
 import com.borarpg.domain.CepLocation
+import com.borarpg.domain.CepLookupException
+import com.borarpg.domain.CepRepository
 import com.borarpg.domain.QuestGenerator
 import com.borarpg.domain.QuestPoint
 import com.borarpg.domain.normalizeCep

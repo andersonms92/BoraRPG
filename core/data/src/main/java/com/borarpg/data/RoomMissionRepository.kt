@@ -8,17 +8,17 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 @Singleton
-class MissionRepository @Inject constructor(private val db: GameDatabase) {
+class RoomMissionRepository @Inject constructor(private val db: GameDatabase) : MissionRepository {
     private val dao = db.missionDao()
-    val active =
+    override val active =
         combine(dao.observeActive(), db.heroDao().observe()) { mission, hero ->
             mission?.let { MissionProgress(it.toQuest(), it.baselineSteps, hero?.steps ?: 0) }
         }
-    val inventory =
+    override val inventory =
         dao.inventory().map { items -> items.map { InventoryItem(it.name, it.quantity) } }
-    val claimed = dao.claimed().map { it.toSet() }
+    override val claimed = dao.claimed().map { it.toSet() }
 
-    suspend fun accept(quest: QuestPoint) = db.withTransaction {
+    override suspend fun accept(quest: QuestPoint) = db.withTransaction {
         require(
             quest.generated &&
                 quest.goalSteps in 200..5000 &&
@@ -49,7 +49,7 @@ class MissionRepository @Inject constructor(private val db: GameDatabase) {
         )
     }
 
-    suspend fun claim() = db.withTransaction {
+    override suspend fun claim() = db.withTransaction {
         val mission = checkNotNull(dao.active()) { "Não há missão ativa para resgatar." }
         val hero = db.heroDao().get() ?: HeroEntity()
         check(MissionProgress(mission.toQuest(), mission.baselineSteps, hero.steps).ready) {
@@ -62,7 +62,7 @@ class MissionRepository @Inject constructor(private val db: GameDatabase) {
         dao.save(mission.copy(status = "claimed"))
     }
 
-    suspend fun cancel() = db.withTransaction {
+    override suspend fun cancel(): Unit = db.withTransaction {
         dao.active()?.let { dao.save(it.copy(status = "cancelled")) }
     }
 

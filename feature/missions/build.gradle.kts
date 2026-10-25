@@ -1,5 +1,6 @@
 plugins { id("borarpg.android.feature") }
 
 dependencies {
-    implementation(project(":core:data"))
+    testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
 }

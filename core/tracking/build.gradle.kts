@@ -4,7 +4,6 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":core:data"))
     implementation(project(":core:domain"))
     implementation(libs.coroutines)
 }

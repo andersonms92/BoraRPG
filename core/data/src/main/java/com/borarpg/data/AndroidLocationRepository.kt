@@ -8,22 +8,20 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
 import android.os.Looper
+import com.borarpg.domain.GeoLocation
+import com.borarpg.domain.GpsState
+import com.borarpg.domain.LocationRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 
-data class GpsState(
-    val location: Location? = null,
-    val message: String = "Buscando sua localização…",
-)
-
 @Singleton
-class LocationRepository
+class AndroidLocationRepository
 @Inject
-constructor(@param:ApplicationContext private val context: Context) {
-    fun updates() = callbackFlow {
+constructor(@param:ApplicationContext private val context: Context) : LocationRepository {
+    override fun updates() = callbackFlow {
         val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         val fine =
             context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
@@ -42,7 +40,7 @@ constructor(@param:ApplicationContext private val context: Context) {
                 override fun onLocationChanged(location: Location) {
                     trySend(
                         GpsState(
-                            location,
+                            GeoLocation(location.latitude, location.longitude, location.accuracy),
                             if (fine) "GPS ativo · precisão de ${location.accuracy.toInt()} m"
                             else "Localização aproximada",
                         )

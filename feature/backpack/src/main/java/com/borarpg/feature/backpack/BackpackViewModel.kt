@@ -2,7 +2,7 @@ package com.borarpg.feature.backpack
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.borarpg.data.AdventureRepository
+import com.borarpg.domain.AdventureRepository
 import com.borarpg.domain.Hero
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

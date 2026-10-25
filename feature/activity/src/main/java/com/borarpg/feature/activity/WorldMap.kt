@@ -27,17 +27,14 @@ import androidx.lifecycle.*
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.borarpg.core.designsystem.*
-import com.borarpg.data.GpsState
+import com.borarpg.domain.GeoLocation
+import com.borarpg.domain.GpsState
 import com.borarpg.domain.QuestPoint
 import com.borarpg.domain.WorkoutStatus
-import com.borarpg.feature.missions.MissionProgressCard
 import com.borarpg.feature.missions.MissionViewModel
 import java.util.UUID
 import kotlinx.coroutines.flow.flowOf
 import org.maplibre.android.geometry.LatLng
-import org.maplibre.android.maps.*
-import org.maplibre.android.style.layers.PropertyFactory.*
-import org.maplibre.geojson.*
 
 @Composable
 fun WorldMap(
@@ -46,13 +43,11 @@ fun WorldMap(
     cepViewModel: CepViewModel = hiltViewModel(),
     workoutViewModel: WorkoutViewModel = hiltViewModel(),
 ) {
-    val workouts by workoutViewModel.workouts.collectAsStateWithLifecycle()
-    val tracking by workoutViewModel.tracking.collectAsStateWithLifecycle()
-    val currentWorkout = workouts.firstOrNull { it.status != WorkoutStatus.SAVED }
-    var historyId by rememberSaveable { mutableStateOf<String?>(null) }
-    val displayedWorkout =
-        currentWorkout ?: workouts.firstOrNull { it.id == historyId } ?: workouts.firstOrNull()
-    val route = displayedWorkout?.route ?: emptyList()
+    val workout by workoutViewModel.state.collectAsStateWithLifecycle()
+    val tracking = workout.tracking
+    val currentWorkout = workout.current
+    val historyId = workout.historyId
+    val route = workout.route
     var showDetails by rememberSaveable { mutableStateOf(false) }
     val mission by missions.state.collectAsStateWithLifecycle()
     val cep by cepViewModel.state.collectAsStateWithLifecycle()
@@ -115,15 +110,16 @@ fun WorldMap(
     Box(Modifier.fillMaxSize()) {
         NativeWorldMap(
             visible,
-            if (currentWorkout?.status == WorkoutStatus.ACTIVE) tracking.location ?: gps.location
+            if (currentWorkout?.status == WorkoutStatus.ACTIVE)
+                tracking.location?.toMapLocation() ?: gps.location?.toMapLocation()
             else if (historyId != null || currentWorkout != null)
                 route.lastOrNull()?.let { point ->
                     android.location.Location("route").apply {
                         latitude = point.latitude
                         longitude = point.longitude
                     }
-                } ?: gps.location
-            else gps.location,
+                } ?: gps.location?.toMapLocation()
+            else gps.location?.toMapLocation(),
             follow,
             recenter,
             cep.target.takeIf { historyId == null && currentWorkout == null },
@@ -244,19 +240,17 @@ fun WorldMap(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    WorkoutPanel(
-                        workoutViewModel,
-                        currentWorkout,
-                        displayedWorkout,
-                        workouts,
+                    WorkoutControls(
+                        workout,
+                        workoutViewModel::onAction,
                         onFollow = {
-                            historyId = null
+                            workoutViewModel.onAction(WorkoutAction.Follow)
                             follow = true
                             recenter++
                             permission = granted()
                         },
-                        onHistory = { result ->
-                            historyId = result.id
+                        onHistory = { id ->
+                            workoutViewModel.onAction(WorkoutAction.SelectHistory(id))
                             follow = false
                             recenter++
                         },
@@ -279,91 +273,25 @@ fun WorldMap(
                     }
                     if (selected != null || showDetails) {
                         if (selected != null) {
-                            Eyebrow(
-                                if (selected.generated) "Objetivo gerado pelo CEP"
-                                else "Seu objetivo de exploração",
-                                Coral,
+                            ObjectiveDetails(
+                                selected = selected,
+                                mission = mission,
+                                reference =
+                                    cep.target?.let {
+                                        GeoLocation(it.latitude, it.longitude)
+                                    } ?: gps.location,
+                                fromCep = cep.target != null,
+                                saved = savedQuests.any { it.id == selected.id },
+                                onAccept = missions::accept,
+                                onClaim = missions::claim,
+                                onCancel = missions::cancel,
+                                onClose = { selectedId = null },
+                                onToggleSaved = { quest ->
+                                    if (savedQuests.any { it.id == quest.id })
+                                        player.deleteQuest(quest.id)
+                                    else player.addQuest(quest)
+                                },
                             )
-                            Text(selected.title, style = MaterialTheme.typography.titleLarge)
-                            if (selected.description.isNotBlank())
-                                Text(selected.description, color = Lime)
-                            if (selected.goalSteps > 0) {
-                                Tag("${selected.rarity} · ${selected.goalSteps} passos")
-                                Text(
-                                    "+${selected.xpReward} XP · ${selected.goldReward} ouro",
-                                    color = Lime,
-                                )
-                                Text("Item: ${selected.itemReward}", color = Coral)
-                                if (mission.active?.quest?.id == selected.id) {
-                                    MissionProgressCard(
-                                        mission.active!!,
-                                        mission.busy,
-                                        missions::claim,
-                                        missions::cancel,
-                                    )
-                                } else {
-                                    Button(
-                                        enabled = !mission.busy && mission.active == null,
-                                        onClick = { missions.accept(selected) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) {
-                                        Text("Aceitar missão")
-                                    }
-                                    if (mission.active != null)
-                                        Text(
-                                            "Conclua ou cancele a missão ativa.",
-                                            color = Muted,
-                                        )
-                                }
-                            }
-                            val reference =
-                                cep.target?.let { LatLng(it.latitude, it.longitude) }
-                                    ?: gps.location?.let { LatLng(it.latitude, it.longitude) }
-                            val distance = reference?.let { loc ->
-                                FloatArray(1)
-                                    .also {
-                                        android.location.Location.distanceBetween(
-                                            loc.latitude,
-                                            loc.longitude,
-                                            selected.latitude,
-                                            selected.longitude,
-                                            it,
-                                        )
-                                    }[0]
-                            }
-                            Text(
-                                if (distance == null)
-                                    "${selected.kind} · ative o GPS para ver a distância"
-                                else
-                                    "${selected.kind} · ${if (distance < 1000) "${distance.toInt()} m" else "%.1f km".format(distance / 1000)} em linha reta${if (cep.target != null) " a partir do CEP" else " pelo GPS"}",
-                                color = Muted,
-                            )
-                            Text(
-                                if (selected.generated && selected.goalSteps > 0)
-                                    "Encontro virtual: a meta é de passos. Não é necessário entrar no terreno indicado pelo marcador."
-                                else if (selected.generated) "Local salvo anteriormente."
-                                else
-                                    "Local marcado por você. Visite apenas áreas de acesso público.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Muted,
-                            )
-                            Row {
-                                TextButton(onClick = { selectedId = null }) { Text("Fechar") }
-                                TextButton(
-                                    onClick = {
-                                        if (savedQuests.any { it.id == selected.id })
-                                            player.deleteQuest(selected.id)
-                                        else player.addQuest(selected)
-                                        selectedId = null
-                                    }
-                                ) {
-                                    Text(
-                                        if (savedQuests.any { it.id == selected.id })
-                                            "Remover dos salvos"
-                                        else "Salvar local"
-                                    )
-                                }
-                            }
                         } else {
                             Eyebrow(
                                 if (cep.target != null) "Região por CEP · GPS não acompanha"

@@ -118,7 +118,7 @@ internal fun ProfileScreen(vm: PlayerViewModel, hero: Hero) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(Icons.Outlined.Lock, null, tint = Muted, modifier = Modifier.size(18.dp))
             Text(
-                "Seus dados ficam neste aparelho. Peso, altura e idade ainda não alteram os treinos ou as recompensas.",
+                "Seus dados ficam neste aparelho. O peso é usado para estimar as calorias das atividades.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Muted,
             )

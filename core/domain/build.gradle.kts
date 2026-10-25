@@ -1,4 +1,7 @@
-plugins { alias(libs.plugins.kotlin.jvm) }
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    id("java-library")
+}
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -7,4 +10,8 @@ java {
 
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
-dependencies { testImplementation(libs.junit) }
+dependencies {
+    api(libs.coroutines.core)
+    testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
+}
