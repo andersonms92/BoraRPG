@@ -2,6 +2,8 @@
 
 App Android de aventura por movimento, em Kotlin e Jetpack Compose. MVVM com fluxo unidirecional na Atividade, contratos de domínio e injeção com Hilt. Dados locais em Room e DataStore.
 
+A interface usa fundo azul-escuro, superfícies em tons de lavanda, destaques em coral e rosa, navegação inferior compacta e cartões de progresso. O mapa mantém os dados geográficos reais, com a mesma paleta e o percurso em gradiente. Jornada, combate, missões, recompensas, inventário, perfil e atividades mantêm seus fluxos existentes.
+
 ## Executar
 
 Abra no Android Studio e execute o módulo app. Requer SDK 37 e JDK compatível com o Gradle configurado.
@@ -16,7 +18,7 @@ Os testes instrumentados usam o runner AndroidJUnitRunner. Execute-os selecionan
 
 A aba Atividade permite escolher caminhada ou corrida, iniciar, pausar, retomar, cancelar e finalizar. O mapa mostra o percurso GPS, a posição e os objetivos; o painel mostra tempo ativo, distância e kcal estimadas. Após finalizar, escolha Salvar resultado ou Descartar. Os percursos salvos podem ser consultados na mesma aba, inclusive após reiniciar o app.
 
-O painel começa recolhido no ícone de caminhada ao lado de centralizar. Toque para expandir os controles e use a seta para recolher novamente. O ícone indica atividade em andamento, pausa, resultado pendente ou aviso. Recolher mantém GPS e cronômetro ativos; selecionar um objetivo abre seus detalhes.
+O painel começa recolhido no ícone de caminhada ao lado de centralizar. Toque para expandir os controles e use a seta para recolher novamente. O ícone indica atividade em andamento, pausa, resultado pendente ou aviso. Recolher mantém GPS e cronômetro ativos; selecionar um objetivo abre seus detalhes e recompensas no início do painel. A barra flutuante reúne Buscar CEP, o ícone de atualizar para Novos objetivos, o painel da atividade e a centralização no GPS.
 
 O serviço em primeiro plano mantém o registro com a tela bloqueada. Pausar interrompe tempo, GPS e contagem de passos; retomar cria um novo segmento, sem ligar o deslocamento durante a pausa. Cancelar descarta o resultado e o percurso, preservando os passos e recompensas já registrados na jornada. Uma interrupção do processo deixa a sessão recuperável como pausada, a partir do último registro persistido; ela não reinicia automaticamente.
 

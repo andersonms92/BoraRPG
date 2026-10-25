@@ -29,6 +29,8 @@ O histórico inicial foi organizado retrospectivamente a partir do protótipo ex
 
 25. Painel da Atividade recolhível em botão flutuante, com expansão animada e indicadores de sessão; permissões e diálogos permanecem ativos ao recolher.
 
+26. Redesenho visual geral com tema azul-escuro, coral e rosa, navegação compacta, cartões de RPG e perfil, métricas adaptáveis, controles flutuantes e mapa com percurso em gradiente. Regras, persistência, missões, recompensas e controles de exercício preservados.
+
 As primeiras etapas usavam demonstrações e busca de locais externos. A versão atual registra passos reais e gera encontros virtuais ao redor do CEP, sem Overpass. O painel do exercício e o histórico ficam na aba Atividade.
 
 A reorganização mantém `borarpg.db` na versão 5, com identidade `ea976d3679146d8b01d46e65885c1c8c`. Apenas o FQN de `GameDatabase` e o diretório dos schemas mudaram para `com.borarpg.data.local.database.GameDatabase`; os schemas e as migrações existentes foram preservados.
