@@ -14,11 +14,15 @@ Abra no Android Studio e execute o módulo app. Requer SDK 37 e JDK compatível 
 
 Os testes instrumentados usam o runner AndroidJUnitRunner. Execute-os selecionando um emulador ou aparelho de teste.
 
+```powershell
+.\gradlew.bat :core:data:connectedDebugAndroidTest :core:tracking:connectedDebugAndroidTest :app:connectedDebugAndroidTest
+```
+
 ## Atividade
 
 A aba Atividade permite escolher caminhada ou corrida, iniciar, pausar, retomar, cancelar e finalizar. O mapa mostra o percurso GPS, a posição e os objetivos; o painel mostra tempo ativo, distância e kcal estimadas. Após finalizar, escolha Salvar resultado ou Descartar. Os percursos salvos podem ser consultados na mesma aba, inclusive após reiniciar o app.
 
-O painel começa recolhido no ícone de caminhada ao lado de centralizar. Toque para expandir os controles e use a seta para recolher novamente. O ícone indica atividade em andamento, pausa, resultado pendente ou aviso. Recolher mantém GPS e cronômetro ativos; selecionar um objetivo abre seus detalhes e recompensas no início do painel. A barra flutuante reúne Buscar CEP, o ícone de atualizar para Novos objetivos, o painel da atividade e a centralização no GPS.
+O painel começa recolhido no ícone de caminhada ao lado de centralizar. Toque para expandir os controles e use a seta para recolher novamente. O ícone indica atividade em andamento, pausa, resultado pendente ou aviso. Recolher mantém GPS e cronômetro ativos; selecionar um objetivo abre seus detalhes e recompensas no início do painel. A barra flutuante reúne Buscar CEP, o ícone de atualizar para Novos objetivos, o histórico de atividades, o painel da atividade e a centralização no GPS. O ícone de relógio abre o histórico mesmo com os controles recolhidos; Ver percurso abre os dados e o mapa da atividade selecionada. Durante um exercício em andamento, a lista permite ler os resumos e orienta finalizar antes de trocar o percurso exibido.
 
 O serviço em primeiro plano mantém o registro com a tela bloqueada. Pausar interrompe tempo, GPS e contagem de passos; retomar cria um novo segmento, sem ligar o deslocamento durante a pausa. Cancelar descarta o resultado e o percurso, preservando os passos e recompensas já registrados na jornada. Uma interrupção do processo deixa a sessão recuperável como pausada, a partir do último registro persistido; ela não reinicia automaticamente.
 
@@ -28,7 +32,7 @@ A localização precisa e o GPS ativo são necessários para iniciar. O sensor d
 
 ## Calorias e perfil
 
-Nome, peso, altura e idade são validados e salvos no aparelho. Cada atividade conserva o peso informado no momento do início. Sem peso válido, a estimativa de calorias fica indisponível.
+Nome, peso, altura e idade são validados e salvos no aparelho. Cada atividade conserva o peso informado no momento do início. Se uma atividade antiga não registrou peso, o app pode estimar suas kcal e médias usando o peso atual do perfil, identificando essa origem na tela e no histórico. O peso originalmente salvo continua tendo prioridade. Sem peso válido, o cartão de kcal oferece Cadastrar peso e acesso direto à aba Você; preencher o perfil atualiza a estimativa sem alterar os dados da atividade.
 
 A estimativa usa MET × peso em kg × horas ativas: 3,8 MET para caminhada e 8,5 MET para corrida. São intensidades de referência, sem medição individual de esforço; inclinação, ritmo e condicionamento alteram o gasto real. O app mostra kcal totais e médias por metro e quilômetro do percurso registrado. Sem deslocamento registrado, mostra zero. Referências: [Compêndio de atividades físicas](https://pacompendium.com/), [caminhada](https://pacompendium.com/walking/) e [corrida](https://pacompendium.com/running/).
 
@@ -39,6 +43,10 @@ Informe um CEP na aba Atividade para gerar seis encontros virtuais em até 1 km 
 Aceitar uma missão inicia uma meta de passos futuros. Os passos reais registrados durante atividades avançam a meta. Ao concluí-la, resgate XP, ouro e um item na mochila; o banco impede resgate duplicado. Há uma missão ativa por vez. Os encontros são virtuais: não é necessário entrar no terreno indicado pelo marcador.
 
 Cada passo registrado também causa dano no combate da jornada; cada dez passos concedem um XP. Uma vitória concede 50 XP, 25 de ouro e um fragmento. A primeira leitura do sensor estabelece a referência; passos anteriores à atividade ou feitos durante pausas não entram na contagem.
+
+Ao chegar a zero de vida, o guardião é derrotado e outro surge com 1.000 de vida. A Jornada mostra o número do encontro e o total de vitórias: 1.996 passos representam uma vitória e o segundo guardião com 4 de vida. Novas derrotas confirmadas no banco geram uma notificação com as recompensas; lotes de passos que vencem vários guardiões geram um único aviso agrupado. Avisos antigos não são repetidos ao reabrir o app. A exibição respeita as permissões de notificação e as configurações do Android.
+
+A progressão começa com 1.000 XP para atingir o nível 2. Cada passagem seguinte exige 250 XP a mais: 1.250, 1.500, 1.750 e assim por diante. O XP total, ouro, itens e vitórias existentes são preservados; o nível e a barra são recalculados pela nova curva. Por exemplo, 699 XP correspondem ao nível 1, faltando 301 XP para o nível 2.
 
 ## Mapa e dados
 
@@ -60,7 +68,7 @@ A migração Room 1→2 remove apenas o progresso simulado antigo. As migraçõe
 | `feature:missions` | Apresentação compartilhada de missões; `presentation/components`, `state` e `viewmodel` |
 | `core:domain` | Kotlin/JVM puro; `model`, `repository`, `rules`, `tracking` e `error` |
 | `core:data` | `local/{database,dao,entity,migration,preferences}`, `remote/cep`, `location`, `mapper`, `repository` e `di` |
-| `core:tracking` | Integração Android em `service`, `controller`, `state`, `time` e `di` |
+| `core:tracking` | Integração Android em `service`, `controller`, `state`, `time`, `notification` e `di` |
 | `core:designsystem` | `theme`, `components` e `illustration`, sem regras de negócio |
 | `build-logic` | Plugins de convenção para bibliotecas Android, Compose, Hilt e features |
 

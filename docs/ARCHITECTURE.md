@@ -66,6 +66,7 @@ core:tracking
 ├── controller
 ├── state
 ├── time
+├── notification
 └── di
 
 core:designsystem
@@ -106,6 +107,8 @@ O serviço chama seus métodos serialmente. O gerenciador publica a transição 
 
 `RoomWorkoutRepository` mantém resumos em `workouts` e pontos em `workout_points`. Checkpoints inserem apenas pontos novos e atualizam o resumo na mesma transação. Um lote inválido reverte a operação; excluir a atividade remove os pontos por chave estrangeira. O histórico contém resumos com `route` vazio. `observeRoute(id)` carrega o percurso exibido; `current()` recupera os pontos necessários para retomar.
 
+`AdventureRepository.recordSteps` retorna `GuardianDefeat` somente quando o lote gera novas vitórias. `RoomAdventureRepository` calcula o evento dentro da transação e o retorna após confirmar passos e recompensas. Consultar o progresso existente não gera eventos. `LevelProgression` calcula o nível a partir do XP total, com requisitos progressivos; alterar a curva não modifica o progresso persistido.
+
 Salvar e descartar retornam `APPLIED`, `NOT_FOUND` ou `INVALID_STATE`. As consultas condicionais impedem alterações incompatíveis e checkpoints tardios sobre resultados finalizados.
 
 O arquivo continua sendo `borarpg.db`, na versão **5**, com identidade **`ea976d3679146d8b01d46e65885c1c8c`**. A reorganização mudou somente o FQN da classe para `com.borarpg.data.local.database.GameDatabase` e o diretório de exportação para `core/data/schemas/com.borarpg.data.local.database.GameDatabase`. Os schemas históricos foram movidos com o mesmo conteúdo. A alteração de pacote não muda tabelas nem exige migração adicional. A migração 4→5 já existente continua convertendo os percursos JSON em pontos ordenados.
@@ -113,6 +116,8 @@ O arquivo continua sendo `borarpg.db`, na versão **5**, com identidade **`ea976
 ## Integração Android
 
 `service/StepTrackingService` mantém notificação, GPS e sensor. Converte callbacks Android em `TrackingCommand`, processados em sequência; o gerenciador de domínio decide as mudanças de sessão. O serviço não recebe DAOs nem entidades.
+
+Uma derrota confirmada por `WorkoutSessionManager.steps` é entregue a `notification/GuardianVictoryNotifier`. O adaptador publica o aviso em um canal próprio, com ID diferente do serviço, respeitando a permissão de notificações. Lotes com várias vitórias produzem um aviso agregado. Falhas ao publicar o aviso não interrompem a atividade; eventos históricos não são reproduzidos.
 
 `controller/TrackingController` implementa `WorkoutTracker` e envia comandos ao serviço após a recuperação inicial. `state/TrackingRuntime` compartilha o estado durante a vida do processo pelo Hilt. `time/AndroidWorkoutTimeSource` fornece os relógios da plataforma, e `di/TrackingModule` conecta os contratos. O banco permite recuperar uma interrupção do processo; o serviço usa `START_NOT_STICKY`.
 
@@ -123,6 +128,8 @@ As composables `Route` obtêm ViewModels pelo Hilt, coletam seus estados com o c
 Na Atividade, `ActivityRoute` combina exercício, missões, CEP, locais salvos e permissões em `ActivityUiState`. `ActivityScreen` envia `ActivityAction`; a Route encaminha comandos aos ViewModels e abre configurações da plataforma quando necessário. Estado visual local do mapa e diálogos permanece no Compose.
 
 O fluxo dos exercícios é `WorkoutAction → WorkoutViewModel → WorkoutUiState → Compose`. O ViewModel combina resumos persistidos, percurso selecionado, tracking e escolhas da interface. O percurso é associado ao ID para evitar exibir dados de uma consulta anterior em outra atividade. Operações incompatíveis e salvamentos simultâneos são bloqueados; o gerenciador valida novamente as transições. A tela observa a sessão existente, inclusive quando sua execução ocorre em segundo plano.
+
+O perfil também é observado para estimar kcal de atividades antigas sem peso registrado. `resolveWorkoutWeight` prioriza o peso original e permite usar o peso atual como alternativa explicitamente identificada na interface, sem reescrever a atividade. As médias por metro e quilômetro usam tempo ativo, modalidade e distância do resultado exibido.
 
 `permissions` adapta solicitações de localização e atividade física; `map` encapsula MapLibre e a conversão de coordenadas; `formatter` prepara duração e nomes para exibição. `WorkoutPanel` e `ObjectiveDetails` recebem estado e callbacks. A expansão do painel é estado visual local salvo pelo Compose. `WorkoutControls` mantém o launcher de permissões e `WorkoutDialogs` compostos fora da área animada; recolher o painel não interrompe callbacks, diálogos ou a sessão.
 
