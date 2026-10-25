@@ -2,22 +2,6 @@
 
 App Android de aventura por movimento, em Kotlin e Jetpack Compose. MVVM com fluxo unidirecional na Atividade, contratos de domínio e injeção com Hilt. Dados locais em Room e DataStore.
 
-A interface usa fundo azul-escuro, superfícies em tons de lavanda, destaques em coral e rosa, navegação inferior compacta e cartões de progresso. O mapa mantém os dados geográficos reais, com a mesma paleta e o percurso em gradiente. Jornada, combate, missões, recompensas, inventário, perfil e atividades mantêm seus fluxos existentes.
-
-## Executar
-
-Abra no Android Studio e execute o módulo app. Requer SDK 37 e JDK compatível com o Gradle configurado.
-
-```powershell
-.\gradlew.bat checkArchitecture :core:domain:test :feature:activity:testDebugUnitTest :feature:profile:testDebugUnitTest :app:assembleDebug lintDebug
-```
-
-Os testes instrumentados usam o runner AndroidJUnitRunner. Execute-os selecionando um emulador ou aparelho de teste.
-
-```powershell
-.\gradlew.bat :core:data:connectedDebugAndroidTest :core:tracking:connectedDebugAndroidTest :app:connectedDebugAndroidTest
-```
-
 ## Atividade
 
 A aba Atividade permite escolher caminhada ou corrida, iniciar, pausar, retomar, cancelar e finalizar. O mapa mostra o percurso GPS, a posição e os objetivos; o painel mostra tempo ativo, distância e kcal estimadas. Após finalizar, escolha Salvar resultado ou Descartar. Os percursos salvos podem ser consultados na mesma aba, inclusive após reiniciar o app.
