@@ -1,13 +1,13 @@
 # BoraRPG
 
-App Android de aventura por movimento, em Kotlin, Jetpack Compose e MVVM. Dados locais em Room e DataStore.
+App Android de aventura por movimento, em Kotlin e Jetpack Compose. MVVM com fluxo unidirecional na Atividade, contratos de domínio e injeção com Hilt. Dados locais em Room e DataStore.
 
 ## Executar
 
 Abra no Android Studio e execute o módulo app. Requer SDK 37 e JDK compatível com o Gradle configurado.
 
 ```powershell
-.\gradlew.bat :core:domain:test :app:assembleDebug lintDebug
+.\gradlew.bat :core:domain:test :feature:activity:testDebugUnitTest :feature:profile:testDebugUnitTest :app:assembleDebug lintDebug
 ```
 
 Os testes instrumentados usam o runner AndroidJUnitRunner. Execute-os selecionando um emulador ou aparelho de teste.
@@ -42,7 +42,7 @@ MapLibre Native e OpenFreeMap renderizam o mapa online. O GPS ou a busca de CEP 
 
 Perfil, progresso, missões, inventário e percursos ficam no aparelho. Não há API própria ou sincronização entre dispositivos. O provedor de mapas recebe a região visualizada e a BrasilAPI recebe o CEP consultado. Não há mais consultas à Overpass API. A localização de visualização do mapa só é coletada enquanto a tela está aberta; durante uma atividade, o serviço mantém a coleta GPS até pausar ou finalizar.
 
-A migração Room 1→2 remove apenas o progresso simulado antigo. As migrações 2→3 e 3→4 acrescentam missões, inventário e atividades, preservando o progresso real.
+A migração Room 1→2 remove apenas o progresso simulado antigo. As migrações 2→3 e 3→4 acrescentam missões, inventário e atividades, preservando o progresso real. A migração 4→5 transfere os percursos JSON para uma tabela de pontos, preservando coordenadas, ordem, segmentos e resultados.
 
 ## Módulos e injeção de dependências
 
@@ -54,24 +54,30 @@ A migração Room 1→2 remove apenas o progresso simulado antigo. As migraçõe
 | `feature:backpack` | Mochila e equipamentos |
 | `feature:profile` | Formulário e validação dos dados pessoais |
 | `feature:missions` | Estado e componentes de missões compartilhados pelas features |
-| `core:domain` | Kotlin/JVM puro: modelos, validações, relógio, distância, calorias e regras de RPG |
+| `core:domain` | Kotlin/JVM puro: contratos, modelos, gerenciador de sessão, relógio e regras |
 | `core:data` | Room, DataStore, repositórios, consulta de CEP e localização |
-| `core:tracking` | Serviço de GPS, contador de passos e controle das sessões |
+| `core:tracking` | Serviço em primeiro plano, GPS, sensor, notificações e implementação de tracking |
 | `core:designsystem` | Tema, componentes visuais e arte compartilhados |
 | `build-logic` | Plugins de convenção para bibliotecas Android, Compose, Hilt e features |
 
 As versões das dependências ficam em `gradle/libs.versions.toml`. O KSP 2.3.6 inclui a [correção de bloqueio de JARs em recompilações no Windows](https://github.com/google/ksp/releases/tag/2.3.6). Cada feature possui seu próprio build Gradle, pacote, telas e ViewModels. Jornada, Atividade e Mochila usam a feature Missões; as demais features não dependem umas das outras. Nenhum módulo `core` depende de `feature` ou de `app`.
 
-O Hilt inicializa a aplicação (`@HiltAndroidApp`), a Activity e o serviço (`@AndroidEntryPoint`). Os ViewModels usam `@HiltViewModel`, injeção pelo construtor e `hiltViewModel()` nas rotas Compose. A feature Atividade observa exercícios através do `WorkoutRepository`, que converte os registros Room em `WorkoutSession` do domínio. O ViewModel e as telas não recebem DAOs, entidades Room ou JSON de percursos. Salvar e descartar usam o ID e transições condicionais no banco, preservando os dados mais recentes da sessão.
+O Hilt inicializa a aplicação, a Activity e o serviço. Os ViewModels dependem de interfaces de `core:domain`; `core:data` implementa os repositórios e `core:tracking` implementa o acompanhamento Android. Os módulos Hilt conectam os contratos às implementações. Nenhuma feature depende diretamente de `core:data` ou `core:tracking`.
 
-Repositórios e controlador de tracking são singletons; o módulo de banco fornece uma única instância Room e os DAOs. Não há factory manual ou localizador global de banco.
+Na Atividade, a UI envia `WorkoutAction` e observa `WorkoutUiState`. O ViewModel combina registros persistidos, tracking e escolhas da interface. `WorkoutPanel` e `ObjectiveDetails` recebem estado e callbacks; permissões ficam no adaptador Compose. O estado da sessão pertence ao gerenciador, inclusive quando a tela está fechada.
 
-Os arquivos do banco e do DataStore e a versão 4 do esquema permanecem os mesmos. Modularizar não apaga nem migra novamente o progresso existente. Os esquemas e testes de persistência agora ficam em `core/data`.
+`WorkoutSessionManager` contém transições, relógio ativo, filtros GPS e contagem de passos. Usa contratos de repositório, relógio e gerador de ID e é testado sem Android. O serviço serializa comandos tipados e adapta callbacks de sensores. Não recebe DAOs ou entidades Room.
+
+O banco usa o esquema 5. Os pontos são gravados incrementalmente na mesma transação do resumo. O histórico observa resumos; o percurso é consultado apenas para a atividade exibida. Salvar e descartar retornam resultados explícitos e usam transições condicionais. As recompensas continuam protegidas por transações.
+
+O perfil de domínio contém medidas numéricas; `ProfileForm` guarda e valida os textos da edição, incluindo vírgula decimal. Preferências anteriores são convertidas sem apagar os dados.
+
+Mais detalhes em [Arquitetura](docs/ARCHITECTURE.md).
 
 ## Validação
 
 ```powershell
-.\gradlew.bat :core:domain:test :app:assembleDebug lintDebug
+.\gradlew.bat :core:domain:test :feature:activity:testDebugUnitTest :feature:profile:testDebugUnitTest :app:assembleDebug lintDebug
 .\gradlew.bat :app:assembleDebugAndroidTest :core:data:assembleDebugAndroidTest
 ```
 
@@ -81,6 +87,8 @@ Com um emulador ou aparelho de teste selecionado:
 .\gradlew.bat :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest
 ```
 
-Os 30 testes JVM do domínio cobrem combate, recompensas, perfil, CEP, geração de objetivos, sensor, pausas, distância e calorias. Os testes instrumentados de dados verificam persistência do percurso após reabrir o banco, recuperação de sessão, migração 2→4 e resgate único de recompensas. Os testes do `WorkoutRepository` verificam o mapeamento para o domínio, as transições permitidas e a preservação dos dados recentes diante de ações antigas da tela. O teste instrumentado do aplicativo verifica a criação dos ViewModels de todas as features através do Hilt na Activity real.
+Os testes JVM cobrem regras de RPG, objetivos, perfil, sensor, filtros GPS, pausas, tempo e transições da sessão. Os testes do ViewModel verificam ações válidas, estado da tela, histórico, erros e proteção contra salvamento duplicado.
+
+Os testes instrumentados verificam persistência após reabrir o banco, migrações 2→5 e 4→5 com percurso existente, gravação incremental, rollback, exclusão em cascata, resgate único de recompensas e criação dos ViewModels pelo Hilt na Activity real.
 
 Referências: [Hilt e Gradle](https://dagger.dev/hilt/gradle-setup), [ViewModels com Hilt](https://dagger.dev/hilt/view-model.html) e [Hilt em aplicações com vários módulos](https://developer.android.com/training/dependency-injection/hilt-multi-module).

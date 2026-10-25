@@ -25,3 +25,8 @@ Validação da entrega 14: compilação, 17 testes e lint passaram. As consultas
 
 15. Destaque permanente do botão Novos objetivos no Território.
 16. Cronômetro da atividade na Jornada e na notificação, com duração final salva localmente.
+
+17. Contratos de domínio e implementações ligadas por Hilt, removendo dependências das features em infraestrutura.
+18. Gerenciador de sessão em Kotlin puro e fluxo unidirecional de ações e estado na Atividade.
+19. Percursos normalizados, migração Room 4→5, gravação incremental e carregamento sob demanda.
+20. Perfil com medidas numéricas e testes de transição, apresentação e persistência.
