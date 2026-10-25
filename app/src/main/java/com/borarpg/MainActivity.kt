@@ -3,7 +3,7 @@ package com.borarpg
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.borarpg.ui.*
+import com.borarpg.navigation.AdventureApp
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

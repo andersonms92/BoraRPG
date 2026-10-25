@@ -7,5 +7,5 @@
  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
  <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false"/>
- <application><service android:name="com.borarpg.tracking.StepTrackingService" android:exported="false" android:foregroundServiceType="health|location"/></application>
+ <application><service android:name="com.borarpg.tracking.service.StepTrackingService" android:exported="false" android:foregroundServiceType="health|location"/></application>
 </manifest>
