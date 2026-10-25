@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.borarpg.core.designsystem.*
 import com.borarpg.data.GpsState
 import com.borarpg.domain.QuestPoint
+import com.borarpg.domain.WorkoutStatus
 import com.borarpg.feature.missions.MissionProgressCard
 import com.borarpg.feature.missions.MissionViewModel
 import java.util.UUID
@@ -47,11 +48,11 @@ fun WorldMap(
 ) {
     val workouts by workoutViewModel.workouts.collectAsStateWithLifecycle()
     val tracking by workoutViewModel.tracking.collectAsStateWithLifecycle()
-    val currentWorkout = workouts.firstOrNull { it.status != "saved" }
+    val currentWorkout = workouts.firstOrNull { it.status != WorkoutStatus.SAVED }
     var historyId by rememberSaveable { mutableStateOf<String?>(null) }
     val displayedWorkout =
         currentWorkout ?: workouts.firstOrNull { it.id == historyId } ?: workouts.firstOrNull()
-    val route = remember(displayedWorkout?.routeJson) { displayedWorkout?.points() ?: emptyList() }
+    val route = displayedWorkout?.route ?: emptyList()
     var showDetails by rememberSaveable { mutableStateOf(false) }
     val mission by missions.state.collectAsStateWithLifecycle()
     val cep by cepViewModel.state.collectAsStateWithLifecycle()
@@ -114,7 +115,7 @@ fun WorldMap(
     Box(Modifier.fillMaxSize()) {
         NativeWorldMap(
             visible,
-            if (currentWorkout?.status == "active") tracking.location ?: gps.location
+            if (currentWorkout?.status == WorkoutStatus.ACTIVE) tracking.location ?: gps.location
             else if (historyId != null || currentWorkout != null)
                 route.lastOrNull()?.let { point ->
                     android.location.Location("route").apply {
@@ -143,7 +144,8 @@ fun WorldMap(
             bottomInset = bottomInset,
             route = route,
             fitRoute =
-                historyId != null && currentWorkout == null || currentWorkout?.status == "draft",
+                historyId != null && currentWorkout == null ||
+                    currentWorkout?.status == WorkoutStatus.DRAFT,
         )
         if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Lime)
         Column(

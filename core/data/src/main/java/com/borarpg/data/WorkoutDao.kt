@@ -48,6 +48,12 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE status != 'saved' ORDER BY startedAt DESC LIMIT 1")
     suspend fun current(): WorkoutEntity?
 
+    @Query("UPDATE workouts SET status = 'saved' WHERE id = :id AND status = 'draft'")
+    suspend fun saveResult(id: String)
+
+    @Query("DELETE FROM workouts WHERE id = :id AND status IN ('draft', 'paused')")
+    suspend fun discard(id: String)
+
     @Upsert suspend fun save(workout: WorkoutEntity)
 
     @Query("DELETE FROM workouts WHERE id = :id") suspend fun delete(id: String)

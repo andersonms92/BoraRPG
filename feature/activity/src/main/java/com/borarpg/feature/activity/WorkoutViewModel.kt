@@ -2,7 +2,8 @@ package com.borarpg.feature.activity
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.borarpg.data.*
+import com.borarpg.data.WorkoutRepository
+import com.borarpg.domain.WorkoutSession
 import com.borarpg.domain.WorkoutType
 import com.borarpg.tracking.TrackingController
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,26 +15,28 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class WorkoutViewModel
 @Inject
-constructor(private val dao: WorkoutDao, private val controller: TrackingController) : ViewModel() {
+constructor(private val repository: WorkoutRepository, private val controller: TrackingController) :
+    ViewModel() {
     val sensorAvailable = controller.available
     val tracking = controller.state
+    private val mutableMessage = MutableStateFlow<String?>(null)
+    val message = mutableMessage.asStateFlow()
     val workouts =
-        dao.observe()
+        repository.workouts
             .catch {
-                message.value = "Não foi possível carregar os percursos."
+                mutableMessage.value = "Não foi possível carregar os percursos."
                 emit(emptyList())
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val message = MutableStateFlow<String?>(null)
 
     init {
         viewModelScope.launch {
             try {
-                tracking.collect { if (!it.active) dao.recover() }
+                tracking.collect { if (!it.active) repository.recoverInterruptedSessions() }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                message.value = "Não foi possível recuperar a atividade anterior."
+                mutableMessage.value = "Não foi possível recuperar a atividade anterior."
             }
         }
     }
@@ -48,26 +51,26 @@ constructor(private val dao: WorkoutDao, private val controller: TrackingControl
 
     fun cancel() = controller.cancel()
 
-    fun save(result: WorkoutEntity) {
+    fun save(result: WorkoutSession) {
         viewModelScope.launch {
             try {
-                if (result.status == "draft") dao.save(result.copy(status = "saved"))
+                repository.saveResult(result.id)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                message.value = "Não foi possível salvar. Tente novamente."
+                mutableMessage.value = "Não foi possível salvar. Tente novamente."
             }
         }
     }
 
-    fun discard(result: WorkoutEntity) {
+    fun discard(result: WorkoutSession) {
         viewModelScope.launch {
             try {
-                if (result.status == "draft" || !tracking.value.active) dao.delete(result.id)
+                repository.discard(result.id)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                message.value = "Não foi possível descartar. Tente novamente."
+                mutableMessage.value = "Não foi possível descartar. Tente novamente."
             }
         }
     }

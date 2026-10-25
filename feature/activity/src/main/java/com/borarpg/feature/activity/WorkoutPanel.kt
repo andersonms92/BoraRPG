@@ -17,7 +17,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.borarpg.core.designsystem.*
-import com.borarpg.data.WorkoutEntity
 import com.borarpg.domain.*
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -26,11 +25,11 @@ import java.util.Locale
 @Composable
 internal fun WorkoutPanel(
     vm: WorkoutViewModel,
-    current: WorkoutEntity?,
-    displayed: WorkoutEntity?,
-    workouts: List<WorkoutEntity>,
+    current: WorkoutSession?,
+    displayed: WorkoutSession?,
+    workouts: List<WorkoutSession>,
     onFollow: () -> Unit,
-    onHistory: (WorkoutEntity) -> Unit,
+    onHistory: (WorkoutSession) -> Unit,
 ) {
     val context = LocalContext.current
     val tracking by vm.tracking.collectAsStateWithLifecycle()
@@ -57,7 +56,7 @@ internal fun WorkoutPanel(
         }
         error = null
         onFollow()
-        if (current?.status == "paused") vm.resume() else vm.start(mode)
+        if (current?.status == WorkoutStatus.PAUSED) vm.resume() else vm.start(mode)
     }
     val permission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -74,7 +73,8 @@ internal fun WorkoutPanel(
         permission.launch(permissions.toTypedArray())
     }
     val elapsed =
-        if (current?.status == "active") maxOf(current.elapsedMillis, tracking.elapsedMillis)
+        if (current?.status == WorkoutStatus.ACTIVE)
+            maxOf(current.elapsedMillis, tracking.elapsedMillis)
         else displayed?.elapsedMillis ?: 0
     val distance = displayed?.distanceMeters ?: 0.0
     val kcal = displayed?.let { workoutCalories(it.mode, it.weightKg, elapsed, distance) }
@@ -120,16 +120,17 @@ internal fun WorkoutPanel(
                 }
             }
         when (current?.status) {
-            "active",
-            "paused" -> {
+            WorkoutStatus.ACTIVE,
+            WorkoutStatus.PAUSED -> {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
-                            if (current.status == "paused") requestStart() else vm.pause()
+                            if (current.status == WorkoutStatus.PAUSED) requestStart()
+                            else vm.pause()
                         },
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text(if (current.status == "paused") "Retomar" else "Pausar")
+                        Text(if (current.status == WorkoutStatus.PAUSED) "Retomar" else "Pausar")
                     }
                     OutlinedButton(onClick = vm::finish, modifier = Modifier.weight(1f)) {
                         Text("Finalizar")
@@ -137,13 +138,13 @@ internal fun WorkoutPanel(
                     TextButton(onClick = { cancel = true }) { Text("Cancelar", color = Coral) }
                 }
                 Text(
-                    if (current.status == "paused") "Atividade pausada"
+                    if (current.status == WorkoutStatus.PAUSED) "Atividade pausada"
                     else "${current.mode.label} · gravando percurso GPS",
                     style = MaterialTheme.typography.bodySmall,
                     color = Muted,
                 )
             }
-            "draft" ->
+            WorkoutStatus.DRAFT ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { vm.save(current) }) { Text("Salvar resultado") }
                     OutlinedButton(onClick = { vm.discard(current) }) { Text("Descartar") }
@@ -191,7 +192,7 @@ internal fun WorkoutPanel(
                     Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    val saved = workouts.filter { it.status == "saved" }
+                    val saved = workouts.filter { it.status == WorkoutStatus.SAVED }
                     if (saved.isEmpty()) Text("As atividades salvas aparecerão aqui.")
                     saved.forEach { result ->
                         OutlinedButton(
