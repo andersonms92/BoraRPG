@@ -1,6 +1,8 @@
 package com.borarpg.feature.activity.presentation.viewmodel
 
 import androidx.lifecycle.ViewModelStore
+import com.borarpg.domain.model.mission.QuestPoint
+import com.borarpg.domain.model.player.PlayerProfile
 import com.borarpg.domain.model.workout.RoutePoint
 import com.borarpg.domain.model.workout.TrackingPhase
 import com.borarpg.domain.model.workout.TrackingState
@@ -8,6 +10,7 @@ import com.borarpg.domain.model.workout.WorkoutMutation
 import com.borarpg.domain.model.workout.WorkoutSession
 import com.borarpg.domain.model.workout.WorkoutStatus
 import com.borarpg.domain.model.workout.WorkoutType
+import com.borarpg.domain.repository.PlayerRepository
 import com.borarpg.domain.repository.WorkoutRepository
 import com.borarpg.domain.tracking.WorkoutTracker
 import com.borarpg.feature.activity.presentation.action.WorkoutAction
@@ -115,12 +118,30 @@ class WorkoutViewModelTest {
 
     private val repository = Store()
     private val tracker = Tracker()
+    private val player = PlayerStore()
+
+    private class PlayerStore : PlayerRepository {
+        val profiles = MutableStateFlow(PlayerProfile())
+        var fail = false
+        override val profile: Flow<PlayerProfile>
+            get() = if (fail) flow { error("profile unavailable") } else profiles
+
+        override val quests = MutableStateFlow(emptyList<QuestPoint>())
+
+        override suspend fun save(profile: PlayerProfile) {
+            profiles.value = profile
+        }
+
+        override suspend fun addQuest(quest: QuestPoint) = Unit
+
+        override suspend fun deleteQuest(id: String) = Unit
+    }
 
     private fun session(id: String = "session", status: WorkoutStatus = WorkoutStatus.DRAFT) =
         WorkoutSession(id, WorkoutType.RUN, 1000, 30_000, 100.0, 65.0, status, emptyList())
 
     private fun model() =
-        WorkoutViewModel(repository, tracker).also { vm ->
+        WorkoutViewModel(repository, tracker, player).also { vm ->
             viewModels.put("workout", vm)
             observations.launch { vm.state.collect() }
         }
@@ -252,5 +273,32 @@ class WorkoutViewModelTest {
         assertEquals(listOf(point), vm.state.value.route)
         assertEquals(2, repository.routeRequests)
         assertNull(vm.state.value.message)
+    }
+
+    @Test
+    fun editingProfileRecalculatesSavedActivityWithoutRecordedWeight() = runTest {
+        val saved = session(status = WorkoutStatus.SAVED).copy(weightKg = null)
+        repository.workouts.value = listOf(saved)
+        val vm = model()
+        advanceUntilIdle()
+        assertNull(vm.state.value.calories)
+
+        player.profiles.value = PlayerProfile(weightKg = 80.0)
+        advanceUntilIdle()
+        assertEquals(5.6666667, vm.state.value.calories!!, .0001)
+        assertTrue(vm.state.value.caloriesUseCurrentWeight)
+        assertNull(repository.workouts.value.single().weightKg)
+        assertEquals(saved.id, vm.state.value.displayed!!.id)
+    }
+
+    @Test
+    fun unavailableProfileDoesNotHideSavedActivities() = runTest {
+        repository.workouts.value = listOf(session(status = WorkoutStatus.SAVED))
+        player.fail = true
+        val vm = model()
+        advanceUntilIdle()
+        assertEquals(1, vm.state.value.history.size)
+        assertNotNull(vm.state.value.calories)
+        assertFalse(vm.state.value.caloriesUseCurrentWeight)
     }
 }

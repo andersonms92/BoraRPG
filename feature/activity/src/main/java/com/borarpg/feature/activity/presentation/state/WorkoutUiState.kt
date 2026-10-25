@@ -5,6 +5,7 @@ import com.borarpg.domain.model.workout.TrackingState
 import com.borarpg.domain.model.workout.WorkoutSession
 import com.borarpg.domain.model.workout.WorkoutStatus
 import com.borarpg.domain.model.workout.WorkoutType
+import com.borarpg.domain.rules.workout.resolveWorkoutWeight
 import com.borarpg.domain.rules.workout.workoutCalories
 
 data class WorkoutUiState(
@@ -20,6 +21,7 @@ data class WorkoutUiState(
     val showHistory: Boolean = false,
     val showCancel: Boolean = false,
     val message: String? = null,
+    val profileWeightKg: Double? = null,
 ) {
     val elapsedMillis: Long
         get() =
@@ -32,6 +34,21 @@ data class WorkoutUiState(
 
     val calories: Double?
         get() = displayed?.let {
-            workoutCalories(it.mode, it.weightKg, elapsedMillis, distanceMeters)
+            workoutCalories(it.mode, calorieWeightKg, elapsedMillis, distanceMeters)
         }
+
+    val calorieWeightKg: Double?
+        get() = resolveWorkoutWeight(displayed?.weightKg, profileWeightKg)
+
+    val caloriesUseCurrentWeight: Boolean
+        get() =
+            displayed != null &&
+                resolveWorkoutWeight(displayed.weightKg) == null &&
+                calorieWeightKg != null
+
+    val caloriesPerMeter: Double?
+        get() = calories?.takeIf { distanceMeters > 0 }?.div(distanceMeters)
+
+    val caloriesPerKilometer: Double?
+        get() = caloriesPerMeter?.times(1000)
 }

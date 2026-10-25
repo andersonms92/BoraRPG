@@ -153,6 +153,8 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
             },
             onHistory = { id ->
                 onAction(ActivityAction.Workout(WorkoutAction.SelectHistory(id)))
+                selectedId = null
+                panelExpanded = true
                 follow = false
                 recenter++
             },
@@ -166,6 +168,7 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 MapToolbar(
+                    onHistory = { onAction(ActivityAction.Workout(WorkoutAction.ShowHistory)) },
                     onSearchCep = { showCep = true },
                     onRecenter = {
                         onAction(ActivityAction.ClearCepTarget)
@@ -234,6 +237,7 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
                                 state = panelState,
                                 onAction = { onAction(ActivityAction.Workout(it)) },
                                 requestStart = requestStart,
+                                onEditProfile = { onAction(ActivityAction.OpenProfile) },
                             )
                             if (selected == null) {
                                 mission.active?.let { active ->

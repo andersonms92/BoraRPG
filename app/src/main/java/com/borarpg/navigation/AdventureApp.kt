@@ -42,7 +42,11 @@ fun AdventureApp() {
                                 { tab = AppDestination.ACTIVITY },
                                 { tab = AppDestination.PROFILE },
                             )
-                        AppDestination.ACTIVITY -> ActivityRoute(missions = missions)
+                        AppDestination.ACTIVITY ->
+                            ActivityRoute(
+                                missions = missions,
+                                onOpenProfile = { tab = AppDestination.PROFILE },
+                            )
                         AppDestination.BACKPACK -> BackpackRoute(missions)
                         AppDestination.PROFILE -> ProfileRoute()
                     }

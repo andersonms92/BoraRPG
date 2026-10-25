@@ -2,6 +2,7 @@ package com.borarpg.feature.activity.presentation.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
@@ -41,17 +43,15 @@ internal fun MapToolbar(
     onSearchCep: () -> Unit,
     onRecenter: () -> Unit,
     onNewObjectives: () -> Unit,
+    onHistory: () -> Unit,
     activityButton: @Composable () -> Unit,
 ) {
-    val compact =
+    val stacked =
         LocalConfiguration.current.screenWidthDp < 360 || LocalDensity.current.fontScale >= 1.2f
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    val compact = !stacked && LocalConfiguration.current.screenWidthDp < 440
+    val search: @Composable (Modifier) -> Unit = { modifier ->
         Surface(
-            modifier = Modifier.weight(1f).height(52.dp),
+            modifier = modifier.height(52.dp),
             shape = RoundedCornerShape(18.dp),
             color = Panel.copy(alpha = .97f),
             border = BorderStroke(1.dp, Cream.copy(alpha = .07f)),
@@ -78,18 +78,50 @@ internal fun MapToolbar(
                 }
             }
         }
+    }
+    val shortcuts: @Composable () -> Unit = {
+        MapShortcut(onClick = onHistory) {
+            Icon(Icons.Outlined.History, "Histórico de atividades")
+        }
         activityButton()
-        FilledIconButton(
-            onClick = onRecenter,
-            modifier = Modifier.size(52.dp),
-            shape = RoundedCornerShape(18.dp),
-            colors =
-                IconButtonDefaults.filledIconButtonColors(
-                    containerColor = Panel.copy(alpha = .97f),
-                    contentColor = Cream,
-                ),
-        ) {
+        MapShortcut(onClick = onRecenter) {
             Icon(Icons.Outlined.MyLocation, "Centralizar na minha posição")
         }
     }
+    if (stacked) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            search(Modifier.fillMaxWidth())
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                shortcuts()
+            }
+        }
+    } else {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            search(Modifier.weight(1f))
+            shortcuts()
+        }
+    }
+}
+
+@Composable
+private fun MapShortcut(onClick: () -> Unit, content: @Composable () -> Unit) {
+    FilledIconButton(
+        onClick = onClick,
+        modifier = Modifier.size(52.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors =
+            IconButtonDefaults.filledIconButtonColors(
+                containerColor = Panel.copy(alpha = .97f),
+                contentColor = Cream,
+            ),
+        content = content,
+    )
 }

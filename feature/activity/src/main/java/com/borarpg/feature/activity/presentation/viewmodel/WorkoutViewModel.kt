@@ -7,6 +7,7 @@ import com.borarpg.domain.model.workout.WorkoutMutation
 import com.borarpg.domain.model.workout.WorkoutSession
 import com.borarpg.domain.model.workout.WorkoutStatus
 import com.borarpg.domain.model.workout.WorkoutType
+import com.borarpg.domain.repository.PlayerRepository
 import com.borarpg.domain.repository.WorkoutRepository
 import com.borarpg.domain.tracking.WorkoutTracker
 import com.borarpg.feature.activity.presentation.action.WorkoutAction
@@ -58,9 +59,11 @@ class WorkoutViewModel
 constructor(
     private val repository: WorkoutRepository,
     private val tracker: WorkoutTracker,
+    player: PlayerRepository,
 ) : ViewModel() {
     private val controls = MutableStateFlow(WorkoutPresentationState())
     private val retry = MutableStateFlow(0)
+    private val profileWeight = player.profile.map { it.weightKg }.catch { emit(null) }
     private val records = retry.flatMapLatest {
         repository.workouts
             .map { WorkoutRecords(it, loading = false) }
@@ -102,7 +105,12 @@ constructor(
                         }
             }
     val state =
-        combine(selection, route, tracker.state, controls) { selected, points, tracking, control ->
+        combine(selection, route, tracker.state, controls, profileWeight) {
+                selected,
+                points,
+                tracking,
+                control,
+                weight ->
                 WorkoutUiState(
                     loading = selected.records.loading,
                     mode = control.mode,
@@ -116,6 +124,7 @@ constructor(
                     showHistory = control.showHistory,
                     showCancel = control.showCancel,
                     message = control.message ?: tracking.error ?: selected.records.error,
+                    profileWeightKg = weight,
                 )
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WorkoutUiState())

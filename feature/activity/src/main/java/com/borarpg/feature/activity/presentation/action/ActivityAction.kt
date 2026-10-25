@@ -35,4 +35,6 @@ internal sealed interface ActivityAction {
     data object OpenPermissions : ActivityAction
 
     data object OpenLocationSettings : ActivityAction
+
+    data object OpenProfile : ActivityAction
 }

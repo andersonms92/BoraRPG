@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.flowOf
 @Composable
 fun ActivityRoute(
     missions: MissionViewModel,
+    onOpenProfile: () -> Unit,
     placesViewModel: PlacesViewModel = hiltViewModel(),
     cepViewModel: CepViewModel = hiltViewModel(),
     workoutViewModel: WorkoutViewModel = hiltViewModel(),
@@ -80,6 +81,7 @@ fun ActivityRoute(
                     )
                 ActivityAction.OpenLocationSettings ->
                     context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                ActivityAction.OpenProfile -> onOpenProfile()
             }
         },
     )

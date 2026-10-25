@@ -1,5 +1,6 @@
 package com.borarpg.feature.activity.presentation.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.borarpg.core.designsystem.theme.Accent
@@ -45,6 +47,8 @@ import com.borarpg.feature.activity.presentation.action.WorkoutAction
 import com.borarpg.feature.activity.presentation.formatter.formatActivityTime
 import com.borarpg.feature.activity.presentation.formatter.label
 import com.borarpg.feature.activity.presentation.state.WorkoutUiState
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -52,6 +56,7 @@ internal fun WorkoutPanel(
     state: WorkoutUiState,
     onAction: (WorkoutAction) -> Unit,
     requestStart: () -> Unit,
+    onEditProfile: () -> Unit,
 ) {
     val current = state.current
     val displayed = state.displayed
@@ -94,23 +99,33 @@ internal fun WorkoutPanel(
                 modifier = Modifier.weight(1f),
             )
             WorkoutMetric(
-                value = kcal?.let { "%.0f".format(it) } ?: "—",
+                value =
+                    if (state.calorieWeightKg == null) "Cadastrar peso"
+                    else kcal?.let { "%.0f".format(it) } ?: "—",
                 label = "kcal estimadas",
                 icon = Icons.Outlined.LocalFireDepartment,
                 modifier = Modifier.weight(1f),
+                onClick = if (state.calorieWeightKg == null) onEditProfile else null,
             )
         }
-        if (kcal != null && distance > 0)
+        if (state.caloriesPerMeter != null && state.caloriesPerKilometer != null)
             Text(
                 String.format(
                     Locale.getDefault(),
-                    "%.3f kcal/m · %.0f kcal/km",
-                    kcal / distance,
-                    kcal / distance * 1000,
+                    "Média: %.1f kcal/km · %.3f kcal/m",
+                    state.caloriesPerKilometer,
+                    state.caloriesPerMeter,
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = Muted,
             )
+        if (state.caloriesUseCurrentWeight) {
+            Text(
+                "Estimativa com seu peso atual (${"%.1f".format(state.calorieWeightKg)} kg). O peso não foi registrado nesta atividade.",
+                color = Muted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
         if (current == null)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 WorkoutType.entries.forEach { type ->
@@ -227,7 +242,7 @@ internal fun WorkoutPanel(
         }
         if (displayed != null && current == null)
             Text(
-                "Último percurso exibido · ${displayed.mode.label}",
+                "Atividade salva · ${displayed.mode.label} · ${SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(displayed.startedAt))}",
                 style = MaterialTheme.typography.bodySmall,
                 color = Muted,
             )
@@ -250,9 +265,12 @@ private fun WorkoutMetric(
     label: String,
     icon: ImageVector,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     Surface(
-        modifier = modifier,
+        modifier =
+            if (onClick == null) modifier
+            else modifier.clickable(role = Role.Button, onClick = onClick),
         color = Elevated.copy(alpha = .65f),
         shape = RoundedCornerShape(15.dp),
     ) {
@@ -269,8 +287,10 @@ private fun WorkoutMetric(
             }
             Text(
                 value,
-                color = Cream,
-                style = MaterialTheme.typography.titleLarge,
+                color = if (onClick == null) Cream else Accent,
+                style =
+                    if (onClick == null) MaterialTheme.typography.titleLarge
+                    else MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
             )
         }
