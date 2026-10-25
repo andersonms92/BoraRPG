@@ -6,4 +6,6 @@ plugins {
 dependencies {
     implementation(project(":core:domain"))
     implementation(libs.coroutines)
+    androidTestImplementation(libs.android.test.runner)
+    androidTestImplementation(libs.android.test.junit)
 }

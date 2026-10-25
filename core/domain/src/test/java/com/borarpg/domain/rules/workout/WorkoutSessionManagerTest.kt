@@ -1,5 +1,6 @@
 package com.borarpg.domain.rules.workout
 
+import com.borarpg.domain.model.combat.GuardianDefeat
 import com.borarpg.domain.model.hero.Hero
 import com.borarpg.domain.model.location.GeoLocation
 import com.borarpg.domain.model.mission.QuestPoint
@@ -80,10 +81,12 @@ class WorkoutSessionManagerTest {
 
     private class Adventure : AdventureRepository {
         var steps = 0
+        var nextDefeat: GuardianDefeat? = null
         override val hero = flowOf(Hero())
 
-        override suspend fun recordSteps(steps: Int) {
+        override suspend fun recordSteps(steps: Int): GuardianDefeat? {
             this.steps += steps
+            return nextDefeat.also { nextDefeat = null }
         }
     }
 
@@ -213,6 +216,38 @@ class WorkoutSessionManagerTest {
         assertEquals(15, adventure.steps)
         assertNull(store.session)
         assertEquals(TrackingPhase.IDLE, manager.state.value.phase)
+    }
+
+    @Test
+    fun victoryRequiresNewRecordedStepsAndCannotReplayOnDuplicateSensorReadings() = runTest {
+        val defeat = GuardianDefeat(1, 1, 50, 25)
+        adventure.nextDefeat = defeat
+        assertNull(manager.steps(1000))
+        manager.start(WorkoutType.WALK)
+        assertNull(manager.steps(-1))
+        assertNull(manager.steps(1000))
+        assertEquals(0, adventure.steps)
+        assertEquals(defeat, manager.steps(2000))
+        assertEquals(1000, adventure.steps)
+        assertNull(manager.steps(2000))
+        assertNull(manager.steps(2001))
+    }
+
+    @Test
+    fun pausedStepsAndResumeBaselineNeverEmitVictories() = runTest {
+        val defeat = GuardianDefeat(2, 4, 100, 50)
+        manager.start(WorkoutType.WALK)
+        assertNull(manager.steps(100))
+        manager.pause()
+        adventure.nextDefeat = defeat
+        assertNull(manager.steps(4000))
+        manager.resume()
+        assertNull(manager.steps(5000))
+        assertEquals(0, adventure.steps)
+        assertEquals(defeat, manager.steps(7000))
+        assertEquals(2000, adventure.steps)
+        manager.finish()
+        assertNull(manager.steps(8000))
     }
 
     @Test

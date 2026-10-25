@@ -29,6 +29,7 @@ import com.borarpg.domain.repository.PlayerRepository
 import com.borarpg.domain.repository.WorkoutRepository
 import com.borarpg.domain.rules.workout.WorkoutSessionManager
 import com.borarpg.domain.tracking.WorkoutTimeSource
+import com.borarpg.tracking.notification.GuardianVictoryNotifier
 import com.borarpg.tracking.state.TrackingRuntime
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.UUID
@@ -53,6 +54,7 @@ class StepTrackingService : Service(), SensorEventListener, LocationListener {
     @Inject lateinit var adventureRepository: AdventureRepository
     @Inject lateinit var time: WorkoutTimeSource
     @Inject lateinit var runtime: TrackingRuntime
+    @Inject lateinit var victoryNotifier: GuardianVictoryNotifier
     private val manager by lazy {
         WorkoutSessionManager(repository, playerRepository, adventureRepository, time) {
             UUID.randomUUID().toString()
@@ -92,7 +94,8 @@ class StepTrackingService : Service(), SensorEventListener, LocationListener {
                         TrackingCommand.LocationUnavailable -> manager.locationUnavailable()
                         is TrackingCommand.Position ->
                             manager.location(command.location, command.timestamp)
-                        is TrackingCommand.Steps -> manager.steps(command.count)
+                        is TrackingCommand.Steps ->
+                            manager.steps(command.count)?.let(victoryNotifier::notify)
                     }
                     runtime.update(manager.state.value)
                     if (manager.state.value.phase == TrackingPhase.RUNNING) register()

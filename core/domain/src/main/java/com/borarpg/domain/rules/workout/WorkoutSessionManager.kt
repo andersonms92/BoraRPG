@@ -1,5 +1,6 @@
 package com.borarpg.domain.rules.workout
 
+import com.borarpg.domain.model.combat.GuardianDefeat
 import com.borarpg.domain.model.location.GeoLocation
 import com.borarpg.domain.model.workout.RoutePoint
 import com.borarpg.domain.model.workout.TrackingPhase
@@ -134,10 +135,10 @@ class WorkoutSessionManager(
                 )
     }
 
-    suspend fun steps(raw: Long) {
-        if (mutable.value.phase != TrackingPhase.RUNNING || raw < 0) return
+    suspend fun steps(raw: Long): GuardianDefeat? {
+        if (mutable.value.phase != TrackingPhase.RUNNING || raw < 0) return null
         val delta = counter.record(raw)
-        if (delta > 0) adventure.recordSteps(delta)
+        return if (delta > 0) adventure.recordSteps(delta) else null
     }
 
     suspend fun interrupted() {
