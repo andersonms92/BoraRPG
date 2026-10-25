@@ -1,5 +1,10 @@
 package com.borarpg.feature.activity.presentation.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,11 +41,13 @@ import com.borarpg.domain.model.workout.WorkoutStatus
 import com.borarpg.feature.activity.presentation.action.ActivityAction
 import com.borarpg.feature.activity.presentation.action.WorkoutAction
 import com.borarpg.feature.activity.presentation.components.ActivityHeader
+import com.borarpg.feature.activity.presentation.components.ActivityPanelButton
 import com.borarpg.feature.activity.presentation.components.CepSearchDialog
 import com.borarpg.feature.activity.presentation.components.CreateQuestDialog
 import com.borarpg.feature.activity.presentation.components.LocationDetails
 import com.borarpg.feature.activity.presentation.components.MapToolbar
 import com.borarpg.feature.activity.presentation.components.ObjectiveDetails
+import com.borarpg.feature.activity.presentation.components.WorkoutPanel
 import com.borarpg.feature.activity.presentation.map.NativeWorldMap
 import com.borarpg.feature.activity.presentation.map.toMapLocation
 import com.borarpg.feature.activity.presentation.permissions.WorkoutControls
@@ -62,6 +69,7 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
     val quests = state.quests
     val permission = state.locationGranted
     val requested = state.permissionRequested
+    var panelExpanded by rememberSaveable { mutableStateOf(false) }
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var showCep by rememberSaveable { mutableStateOf(false) }
     var filter by rememberSaveable { mutableStateOf("Todos") }
@@ -102,7 +110,10 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
             cep.revision,
             cep.objectives,
             onGesture = { follow = false },
-            onSelect = { selectedId = it },
+            onSelect = {
+                selectedId = it
+                panelExpanded = true
+            },
             onLongPress = {
                 pending = it
                 title = ""
@@ -129,122 +140,146 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
             },
             modifier = Modifier.align(Alignment.TopStart).onSizeChanged { topInset = it.height },
         )
-        Column(
-            Modifier.align(Alignment.BottomCenter)
-                .onSizeChanged { bottomInset = it.height }
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            MapToolbar(
-                onSearchCep = { showCep = true },
-                onRecenter = {
-                    onAction(ActivityAction.ClearCepTarget)
-                    follow = true
-                    recenter++
-                    if (!permission) onAction(ActivityAction.RequestLocation)
-                },
-                onNewObjectives = {
-                    if (cep.target == null) showCep = true
-                    else {
-                        selectedId = null
-                        onAction(ActivityAction.RegenerateObjectives)
-                    }
-                },
-            )
-            Surface(
-                shape = RoundedCornerShape(26.dp),
-                color = Ink.copy(alpha = .97f),
-                tonalElevation = 6.dp,
+        WorkoutControls(
+            state = workout,
+            onAction = { onAction(ActivityAction.Workout(it)) },
+            onFollow = {
+                onAction(ActivityAction.Workout(WorkoutAction.Follow))
+                follow = true
+                recenter++
+                onAction(ActivityAction.RefreshLocationPermission)
+            },
+            onHistory = { id ->
+                onAction(ActivityAction.Workout(WorkoutAction.SelectHistory(id)))
+                follow = false
+                recenter++
+            },
+        ) { panelState, requestStart ->
+            Column(
+                Modifier.align(Alignment.BottomCenter)
+                    .onSizeChanged { bottomInset = it.height }
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Column(
-                    Modifier.heightIn(max = 340.dp)
-                        .verticalScroll(rememberScrollState())
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                MapToolbar(
+                    onSearchCep = { showCep = true },
+                    onRecenter = {
+                        onAction(ActivityAction.ClearCepTarget)
+                        follow = true
+                        recenter++
+                        if (!permission) onAction(ActivityAction.RequestLocation)
+                    },
+                    onNewObjectives = {
+                        if (cep.target == null) showCep = true
+                        else {
+                            selectedId = null
+                            onAction(ActivityAction.RegenerateObjectives)
+                        }
+                    },
+                    activityButton = {
+                        ActivityPanelButton(
+                            expanded = panelExpanded,
+                            status = panelState.current?.status,
+                            mode = panelState.current?.mode ?: panelState.mode,
+                            hasError = panelState.message != null || mapError != null,
+                            onClick = { panelExpanded = !panelExpanded },
+                        )
+                    },
+                )
+                AnimatedVisibility(
+                    visible = panelExpanded,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
                 ) {
-                    WorkoutControls(
-                        workout,
-                        { onAction(ActivityAction.Workout(it)) },
-                        onFollow = {
-                            onAction(ActivityAction.Workout(WorkoutAction.Follow))
-                            follow = true
-                            recenter++
-                            onAction(ActivityAction.RefreshLocationPermission)
-                        },
-                        onHistory = { id ->
-                            onAction(ActivityAction.Workout(WorkoutAction.SelectHistory(id)))
-                            follow = false
-                            recenter++
-                        },
-                    )
-                    if (selected == null) {
-                        mission.active?.let { active ->
-                            Text(
-                                "${active.quest.title} · ${active.steps}/${active.quest.goalSteps} passos",
-                                color = Lime,
-                                style = MaterialTheme.typography.labelMedium,
+                    Surface(
+                        shape = RoundedCornerShape(26.dp),
+                        color = Ink.copy(alpha = .97f),
+                        tonalElevation = 6.dp,
+                    ) {
+                        Column(
+                            Modifier.heightIn(max = 340.dp)
+                                .verticalScroll(rememberScrollState())
+                                .padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            WorkoutPanel(
+                                state = panelState,
+                                onAction = { onAction(ActivityAction.Workout(it)) },
+                                requestStart = requestStart,
                             )
-                            if (active.ready)
-                                Button(
-                                    onClick = { onAction(ActivityAction.ClaimMission) },
-                                    enabled = !mission.busy,
-                                ) {
-                                    Text("Resgatar recompensas")
-                                }
-                        }
-                        TextButton(onClick = { showDetails = !showDetails }) {
-                            Text(if (showDetails) "Ocultar detalhes" else "Objetivos e região")
-                        }
-                    }
-                    if (selected != null || showDetails) {
-                        if (selected != null) {
-                            ObjectiveDetails(
-                                selected = selected,
-                                mission = mission,
-                                reference =
-                                    cep.target?.let {
-                                        GeoLocation(it.latitude, it.longitude)
-                                    } ?: gps.location,
-                                fromCep = cep.target != null,
-                                saved = savedQuests.any { it.id == selected.id },
-                                onAccept = { onAction(ActivityAction.AcceptMission(it)) },
-                                onClaim = { onAction(ActivityAction.ClaimMission) },
-                                onCancel = { onAction(ActivityAction.CancelMission) },
-                                onClose = { selectedId = null },
-                                onToggleSaved = { quest ->
-                                    if (savedQuests.any { it.id == quest.id })
-                                        onAction(ActivityAction.DeleteQuest(quest.id))
-                                    else onAction(ActivityAction.AddQuest(quest))
-                                },
-                            )
-                        } else {
-                            LocationDetails(
-                                cep = cep,
-                                gps = gps,
-                                locationGranted = permission,
-                                permissionRequested = requested,
-                                hasQuests = quests.isNotEmpty(),
-                                onPermission = {
-                                    onAction(
-                                        if (requested) ActivityAction.OpenPermissions
-                                        else ActivityAction.RequestLocation
+                            if (selected == null) {
+                                mission.active?.let { active ->
+                                    Text(
+                                        "${active.quest.title} · ${active.steps}/${active.quest.goalSteps} passos",
+                                        color = Lime,
+                                        style = MaterialTheme.typography.labelMedium,
                                     )
-                                },
-                                onLocationSettings = {
-                                    onAction(ActivityAction.OpenLocationSettings)
-                                },
-                            )
+                                    if (active.ready)
+                                        Button(
+                                            onClick = { onAction(ActivityAction.ClaimMission) },
+                                            enabled = !mission.busy,
+                                        ) {
+                                            Text("Resgatar recompensas")
+                                        }
+                                }
+                                TextButton(onClick = { showDetails = !showDetails }) {
+                                    Text(
+                                        if (showDetails) "Ocultar detalhes"
+                                        else "Objetivos e região"
+                                    )
+                                }
+                            }
+                            if (selected != null || showDetails) {
+                                if (selected != null) {
+                                    ObjectiveDetails(
+                                        selected = selected,
+                                        mission = mission,
+                                        reference =
+                                            cep.target?.let {
+                                                GeoLocation(it.latitude, it.longitude)
+                                            } ?: gps.location,
+                                        fromCep = cep.target != null,
+                                        saved = savedQuests.any { it.id == selected.id },
+                                        onAccept = { onAction(ActivityAction.AcceptMission(it)) },
+                                        onClaim = { onAction(ActivityAction.ClaimMission) },
+                                        onCancel = { onAction(ActivityAction.CancelMission) },
+                                        onClose = { selectedId = null },
+                                        onToggleSaved = { quest ->
+                                            if (savedQuests.any { it.id == quest.id })
+                                                onAction(ActivityAction.DeleteQuest(quest.id))
+                                            else onAction(ActivityAction.AddQuest(quest))
+                                        },
+                                    )
+                                } else {
+                                    LocationDetails(
+                                        cep = cep,
+                                        gps = gps,
+                                        locationGranted = permission,
+                                        permissionRequested = requested,
+                                        hasQuests = quests.isNotEmpty(),
+                                        onPermission = {
+                                            onAction(
+                                                if (requested) ActivityAction.OpenPermissions
+                                                else ActivityAction.RequestLocation
+                                            )
+                                        },
+                                        onLocationSettings = {
+                                            onAction(ActivityAction.OpenLocationSettings)
+                                        },
+                                    )
+                                }
+                            }
+                            mapError?.let {
+                                Text(it, color = Coral, style = MaterialTheme.typography.bodySmall)
+                            }
+                            placesMessage
+                                ?.takeIf { it.contains("local", true) }
+                                ?.let { Text(it, color = Coral) }
+                            mission.message?.let { Text(it, color = Lime) }
                         }
                     }
-                    mapError?.let {
-                        Text(it, color = Coral, style = MaterialTheme.typography.bodySmall)
-                    }
-                    placesMessage
-                        ?.takeIf { it.contains("local", true) }
-                        ?.let { Text(it, color = Coral) }
-                    mission.message?.let { Text(it, color = Lime) }
                 }
             }
         }

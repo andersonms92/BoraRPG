@@ -26,6 +26,7 @@ internal fun MapToolbar(
     onSearchCep: () -> Unit,
     onRecenter: () -> Unit,
     onNewObjectives: () -> Unit,
+    activityButton: @Composable () -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth(),
@@ -37,11 +38,14 @@ internal fun MapToolbar(
             Spacer(Modifier.width(8.dp))
             Text("Buscar CEP")
         }
-        FilledIconButton(
-            onClick = onRecenter,
-            modifier = Modifier.size(52.dp),
-        ) {
-            Icon(Icons.Outlined.MyLocation, "Centralizar na minha posição")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            activityButton()
+            FilledIconButton(
+                onClick = onRecenter,
+                modifier = Modifier.size(52.dp),
+            ) {
+                Icon(Icons.Outlined.MyLocation, "Centralizar na minha posição")
+            }
         }
     }
     FilledTonalButton(

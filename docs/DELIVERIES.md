@@ -27,6 +27,8 @@ O histórico inicial foi organizado retrospectivamente a partir do protótipo ex
 23. Invariantes de `QuestPoint` e regras de missão no domínio, mantendo as atualizações de progresso e recompensas nas transações de data. Design system organizado em tema, componentes e ilustração; navegação do app com destinos tipados.
 24. Verificação `checkArchitecture` para dependências, imports e diretórios dos pacotes, com testes e documentação acompanhando a nova estrutura.
 
+25. Painel da Atividade recolhível em botão flutuante, com expansão animada e indicadores de sessão; permissões e diálogos permanecem ativos ao recolher.
+
 As primeiras etapas usavam demonstrações e busca de locais externos. A versão atual registra passos reais e gera encontros virtuais ao redor do CEP, sem Overpass. O painel do exercício e o histórico ficam na aba Atividade.
 
 A reorganização mantém `borarpg.db` na versão 5, com identidade `ea976d3679146d8b01d46e65885c1c8c`. Apenas o FQN de `GameDatabase` e o diretório dos schemas mudaram para `com.borarpg.data.local.database.GameDatabase`; os schemas e as migrações existentes foram preservados.

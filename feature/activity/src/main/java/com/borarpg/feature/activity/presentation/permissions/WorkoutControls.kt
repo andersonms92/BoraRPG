@@ -14,7 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.borarpg.domain.model.workout.WorkoutStatus
 import com.borarpg.feature.activity.presentation.action.WorkoutAction
-import com.borarpg.feature.activity.presentation.components.WorkoutPanel
+import com.borarpg.feature.activity.presentation.components.WorkoutDialogs
 import com.borarpg.feature.activity.presentation.state.WorkoutUiState
 
 @Composable
@@ -23,6 +23,7 @@ internal fun WorkoutControls(
     onAction: (WorkoutAction) -> Unit,
     onFollow: () -> Unit,
     onHistory: (String) -> Unit,
+    content: @Composable (WorkoutUiState, () -> Unit) -> Unit,
 ) {
     val context = LocalContext.current
     var error by remember { mutableStateOf<String?>(null) }
@@ -49,20 +50,15 @@ internal fun WorkoutControls(
         rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             start()
         }
-    WorkoutPanel(
-        state.copy(message = error ?: state.message),
-        onAction = onAction,
-        requestStart = {
-            val permissions =
-                mutableListOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                )
-            if (Build.VERSION.SDK_INT >= 29)
-                permissions.add(Manifest.permission.ACTIVITY_RECOGNITION)
-            if (Build.VERSION.SDK_INT >= 33) permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-            permission.launch(permissions.toTypedArray())
-        },
-        onHistory = onHistory,
-    )
+    WorkoutDialogs(state, onAction, onHistory)
+    content(state.copy(message = error ?: state.message)) {
+        val permissions =
+            mutableListOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+            )
+        if (Build.VERSION.SDK_INT >= 29) permissions.add(Manifest.permission.ACTIVITY_RECOGNITION)
+        if (Build.VERSION.SDK_INT >= 33) permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        permission.launch(permissions.toTypedArray())
+    }
 }
