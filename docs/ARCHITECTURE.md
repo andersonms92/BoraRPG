@@ -1,62 +1,146 @@
 # Arquitetura
 
-O projeto mantém MVVM e aplica fluxo unidirecional na Atividade. Os limites de Clean Architecture são expressos pelas dependências Gradle e pelos contratos Kotlin do domínio.
+O projeto usa Clean Architecture para direcionar as dependências, MVVM para a apresentação e fluxo unidirecional de ações e estado na Atividade. Os módulos definem limites de compilação; os pacotes internos separam responsabilidades. As features contêm apresentação, enquanto domínio e implementações de dados ficam nos módulos compartilhados.
 
-## Dependências
+## Dependências e composição
 
 ```mermaid
 flowchart TD
     app --> features[feature:*]
     app --> data[core:data]
     app --> tracking[core:tracking]
+    app --> design[core:designsystem]
     features --> domain[core:domain]
-    features --> design[core:designsystem]
+    features --> design
     data --> domain
     tracking --> domain
 ```
 
-As setas representam dependências de compilação. O Hilt fornece implementações para os contratos recebidos pelos ViewModels e pelo serviço. Jornada, Atividade e Mochila também reutilizam a apresentação de Missões.
+As setas representam dependências de compilação. Jornada, Atividade e Mochila também dependem de `feature:missions` para reutilizar sua apresentação. Os ViewModels recebem interfaces de domínio; Hilt conecta os contratos aos repositórios e ao acompanhamento Android. As features não importam DAOs, entidades Room ou o serviço.
+
+## Organização dos módulos
+
+Os diretórios abaixo representam pacotes existentes sob `src/main/java`. Testes ficam nos respectivos `src/test` e `src/androidTest`, acompanhando o pacote da responsabilidade testada.
+
+```text
+app
+├── BoraApplication.kt
+├── MainActivity.kt
+└── navigation
+    ├── AdventureApp.kt
+    ├── AppDestination.kt
+    └── AppNavigationBar.kt
+
+core:domain
+├── model
+│   ├── hero
+│   ├── inventory
+│   ├── location
+│   ├── mission
+│   ├── player
+│   └── workout
+├── repository
+├── rules
+│   ├── combat
+│   ├── location
+│   ├── mission
+│   └── workout
+├── tracking
+└── error
+
+core:data
+├── local
+│   ├── database
+│   ├── dao
+│   ├── entity
+│   ├── migration
+│   └── preferences
+├── remote/cep
+├── location
+├── mapper
+├── repository
+└── di
+
+core:tracking
+├── service
+├── controller
+├── state
+├── time
+└── di
+
+core:designsystem
+├── theme
+├── components
+└── illustration
+```
+
+| Feature | Pacotes sob `presentation` |
+| --- | --- |
+| `journey` | `screen`, `components`, `state`, `viewmodel` |
+| `activity` | `screen`, `components`, `map`, `permissions`, `formatter`, `action`, `state`, `viewmodel` |
+| `backpack` | `screen`, `components`, `viewmodel` |
+| `profile` | `screen`, `components`, `form`, `state`, `viewmodel` |
+| `missions` | `components`, `state`, `viewmodel` |
+
+`build-logic/src/main/kotlin` reúne os plugins de convenção Android library, Compose, Hilt e feature. As versões são centralizadas em `gradle/libs.versions.toml`.
 
 ## Domínio
 
-`core:domain` usa Kotlin e coroutines, sem Android, Room, Hilt ou tipos de localização da plataforma. Reúne os modelos e contratos de progresso, perfil, missões, CEP, localização e exercícios.
+`core:domain` usa Kotlin/JVM e coroutines, sem Android, Room ou Hilt. `model` contém tipos de negócio; `repository` define contratos de armazenamento e consulta; `tracking` define `WorkoutTracker` e `WorkoutTimeSource`; `rules` reúne cálculos e coordenação; `error` contém a exceção de consulta de CEP.
 
-`WorkoutSessionManager` coordena iniciar, pausar, retomar, finalizar e cancelar. Usa tempo monotônico para duração e tempo civil para a data de início. Retomar reinicia a referência de passos e cria um segmento. Deslocamentos entre segmentos não entram na distância. Finalizar produz um rascunho; salvar o resultado é uma operação persistente separada.
+`QuestPoint` exige título não vazio de até 60 caracteres e coordenadas válidas. `PlayerProfile` mantém medidas numéricas e seus limites. `MissionRules` valida os requisitos de uma missão gerada e calcula a recompensa somente quando a meta foi concluída. Essas regras independem do banco.
 
-O gerenciador recebe relógio e gerador de ID. Seus métodos são chamados serialmente pelo serviço. A persistência conclui antes da publicação da transição. Falhas preservam o último checkpoint confirmado; sessões interrompidas são recuperadas como pausadas.
+`WorkoutType` contém `WALK` e `RUN`, sem rótulos de apresentação. A duração permanece numérica no domínio; `formatActivityTime` e os nomes exibidos das modalidades pertencem a `feature:activity/presentation/formatter`.
 
-As operações complexas de atividade estão nesse coordenador. Consultas simples usam os contratos diretamente, sem casos de uso que apenas repassem chamadas.
+`WorkoutSessionManager` coordena iniciar, pausar, retomar, finalizar e cancelar. Recebe os contratos de repositório, relógio e gerador de ID. Usa tempo monotônico para duração e tempo civil para o início. Retomar reinicia a referência do sensor e cria um segmento; deslocamentos entre segmentos não entram na distância. Finalizar produz um rascunho, que pode ser salvo ou descartado separadamente.
 
-## Dados
+O serviço chama seus métodos serialmente. O gerenciador publica a transição após persistir o checkpoint; sessões interrompidas podem ser recuperadas como pausadas. `WorkoutClock`, `StepCounter`, os filtros de GPS e os cálculos de distância e calorias também ficam no domínio. Consultas simples usam os contratos diretamente, sem classes que apenas repassem chamadas.
 
-`RoomAdventureRepository` e `RoomMissionRepository` mantêm progresso e recompensas em transações. `DataStorePlayerRepository` guarda perfil e locais salvos. `HttpCepRepository` consulta a BrasilAPI. `AndroidLocationRepository` adapta a localização de visualização para `GeoLocation`.
+## Dados e compatibilidade
 
-`RoomWorkoutRepository` mantém resumos em `workouts` e pontos em `workout_points`. Cada ponto possui posição e segmento; a chave estrangeira remove os pontos junto da atividade. Checkpoints inserem apenas pontos novos e atualizam o resumo na mesma transação. Erros no lote revertem a operação inteira.
+`local/database` contém `GameDatabase`; `dao` contém consultas; `entity` contém as representações Room; `migration` contém as migrações; `preferences` contém as chaves DataStore e o codec dos objetivos. Conversões entre persistência, resposta remota e domínio ficam em `mapper`.
 
-A lista de exercícios contém metadados com `route` vazio. `observeRoute(id)` carrega o percurso selecionado; `current()` recupera pontos para retomar uma sessão. Isso evita carregar todos os percursos a cada atualização do cronômetro.
+`repository` implementa os contratos de domínio. `RoomAdventureRepository` e `RoomMissionRepository` executam regras e atualizações na mesma transação. No resgate, experiência, ouro, inventário e estado da missão são confirmados juntos; o repositório também impede uma segunda missão ativa e resgate duplicado. As regras de recompensa permanecem em `MissionRules`.
 
-Salvar e descartar retornam `APPLIED`, `NOT_FOUND` ou `INVALID_STATE`. Checkpoints tardios não sobrescrevem resultados finalizados. A migração 4→5 converte o JSON antigo e mantém os demais dados. Dispatchers de rede e transformação de pontos são injetados.
+`DataStorePlayerRepository` armazena perfil e objetivos pessoais. `HttpCepRepository` normaliza a consulta e usa `remote/cep/CepRemoteDataSource`, responsável pelo transporte HTTP e leitura da resposta. `location/AndroidLocationRepository` adapta a localização de visualização para os tipos do domínio. `di` fornece banco, dispatchers e vínculos das implementações.
+
+`RoomWorkoutRepository` mantém resumos em `workouts` e pontos em `workout_points`. Checkpoints inserem apenas pontos novos e atualizam o resumo na mesma transação. Um lote inválido reverte a operação; excluir a atividade remove os pontos por chave estrangeira. O histórico contém resumos com `route` vazio. `observeRoute(id)` carrega o percurso exibido; `current()` recupera os pontos necessários para retomar.
+
+Salvar e descartar retornam `APPLIED`, `NOT_FOUND` ou `INVALID_STATE`. As consultas condicionais impedem alterações incompatíveis e checkpoints tardios sobre resultados finalizados.
+
+O arquivo continua sendo `borarpg.db`, na versão **5**, com identidade **`ea976d3679146d8b01d46e65885c1c8c`**. A reorganização mudou somente o FQN da classe para `com.borarpg.data.local.database.GameDatabase` e o diretório de exportação para `core/data/schemas/com.borarpg.data.local.database.GameDatabase`. Os schemas históricos foram movidos com o mesmo conteúdo. A alteração de pacote não muda tabelas nem exige migração adicional. A migração 4→5 já existente continua convertendo os percursos JSON em pontos ordenados.
 
 ## Integração Android
 
-`StepTrackingService` mantém notificação e listeners. Converte eventos Android em comandos tipados, processados em sequência. O gerenciador decide sobre tempo, distância e progresso. O serviço não conhece Room.
+`service/StepTrackingService` mantém notificação, GPS e sensor. Converte callbacks Android em `TrackingCommand`, processados em sequência; o gerenciador de domínio decide as mudanças de sessão. O serviço não recebe DAOs nem entidades.
 
-`TrackingController` implementa `WorkoutTracker` e envia comandos ao serviço. A recuperação inicial conclui antes dos comandos. `TrackingRuntime` é compartilhado pelo Hilt durante a vida do processo, sem objeto global estático. O banco permite recuperação após morte do processo; o serviço usa `START_NOT_STICKY`.
+`controller/TrackingController` implementa `WorkoutTracker` e envia comandos ao serviço após a recuperação inicial. `state/TrackingRuntime` compartilha o estado durante a vida do processo pelo Hilt. `time/AndroidWorkoutTimeSource` fornece os relógios da plataforma, e `di/TrackingModule` conecta os contratos. O banco permite recuperar uma interrupção do processo; o serviço usa `START_NOT_STICKY`.
 
-## Apresentação
+## Apresentação e navegação
 
-`WorkoutViewModel` recebe `WorkoutAction` e expõe um único `StateFlow<WorkoutUiState>`. Combina resumos, percurso selecionado, tracking e escolhas da interface. O percurso é identificado pelo ID para impedir que uma consulta anterior apareça em outra atividade.
+As composables `Route` obtêm ViewModels pelo Hilt, coletam seus estados com o ciclo de vida e conectam callbacks. As `Screen` recebem estados e ações, sem receber ViewModels. Componentes menores recebem somente os dados e callbacks necessários.
 
-O ViewModel impede operações incompatíveis e salvamentos simultâneos. Comandos são validados novamente pelo gerenciador. Compose apresenta estado e envia ações; o adaptador `WorkoutControls` solicita permissões. A tela não controla uma segunda sessão.
+Na Atividade, `ActivityRoute` combina exercício, missões, CEP, locais salvos e permissões em `ActivityUiState`. `ActivityScreen` envia `ActivityAction`; a Route encaminha comandos aos ViewModels e abre configurações da plataforma quando necessário. Estado visual local do mapa e diálogos permanece no Compose.
 
-`ProfileForm` representa os textos em edição. `PlayerProfile` usa medidas numéricas e valida seus limites. A conversão aceita vírgula decimal. As demais telas continuam com MVVM e métodos diretos.
+O fluxo dos exercícios é `WorkoutAction → WorkoutViewModel → WorkoutUiState → Compose`. O ViewModel combina resumos persistidos, percurso selecionado, tracking e escolhas da interface. O percurso é associado ao ID para evitar exibir dados de uma consulta anterior em outra atividade. Operações incompatíveis e salvamentos simultâneos são bloqueados; o gerenciador valida novamente as transições. A tela observa a sessão existente, inclusive quando sua execução ocorre em segundo plano.
 
-## Testes
+`permissions` adapta solicitações de localização e atividade física; `map` encapsula MapLibre e a conversão de coordenadas; `formatter` prepara duração e nomes para exibição. `WorkoutPanel` e `ObjectiveDetails` recebem estado e callbacks.
 
-- Domínio: regras, relógio, GPS, retomada, interrupções e falhas de gravação.
-- ViewModel: ações, histórico, sessão correspondente, erros e salvamento duplicado.
-- Perfil: formulário e conversão para medidas numéricas.
-- Room: migração, persistência, checkpoints, rollback, estados condicionais e cascata.
-- Aplicação: composição das dependências reais com Hilt.
+As outras features mantêm MVVM com métodos diretos. `ProfileForm` representa textos em edição e converte vírgula decimal para as medidas numéricas de `PlayerProfile`. `feature:missions` fornece estado e componentes compartilhados por Jornada, Atividade e Mochila.
 
-Precisão do GPS, bateria e execução prolongada em segundo plano exigem também validação em aparelho físico.
+Em `app/navigation`, `AppDestination` representa as abas como enum, substituindo índices numéricos. `AdventureApp` mantém a seleção com `rememberSaveable` e apresenta a Route correspondente; `AppNavigationBar` renderiza a seleção. `BoraApplication` e `MainActivity` são os pontos de entrada Hilt.
+
+`core:designsystem` concentra cores e `BoraTheme` em `theme`, componentes como `Eyebrow` e `Tag` em `components` e a arte `GuardianArt` em `illustration`. Não depende das features nem contém regras de negócio.
+
+## Verificação de arquitetura e testes
+
+`gradle/architecture.gradle.kts` define `checkArchitecture`, também executada pelas tarefas `check`. A verificação inspeciona dependências Gradle e arquivos Kotlin de `main`, `test` e `androidTest`:
+
+- Domínio não pode depender de outro módulo nem importar Android, AndroidX, Hilt, injeção ou coroutines Android.
+- Dados e tracking só podem depender de seus próprios tipos e dos contratos de domínio.
+- Design system não pode depender de outros módulos do aplicativo.
+- Features podem usar domínio, design system e a apresentação compartilhada de missões; outros módulos de infraestrutura e features não são permitidos.
+- O diretório de cada arquivo deve corresponder ao pacote declarado.
+- Todos os imports devem ser explícitos, sem wildcard.
+
+A suíte JVM exercita regras, invariantes, sessão, formulário, formatação e ViewModels. Os testes instrumentados verificam persistência, migrações, abertura de banco v5 existente após a mudança de pacote, atomicidade, cascata, resgate único e composição Hilt. Os comandos estão no [README](../README.md). Precisão do GPS, bateria e execução prolongada também exigem validação em aparelho físico.
