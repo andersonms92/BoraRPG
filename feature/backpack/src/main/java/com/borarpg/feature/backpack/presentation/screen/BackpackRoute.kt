@@ -11,5 +11,5 @@ import com.borarpg.feature.missions.presentation.viewmodel.MissionViewModel
 fun BackpackRoute(missions: MissionViewModel, vm: BackpackViewModel = hiltViewModel()) {
     val hero by vm.hero.collectAsStateWithLifecycle()
     val mission by missions.state.collectAsStateWithLifecycle()
-    BackpackScreen(hero, mission.inventory)
+    BackpackScreen(hero, mission.inventory, mission.active)
 }

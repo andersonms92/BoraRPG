@@ -9,16 +9,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.borarpg.core.designsystem.theme.Lime
+import com.borarpg.core.designsystem.theme.Accent
 
 @Composable
-fun Tag(text: String, color: Color = Lime) {
+fun Tag(text: String, color: Color = Accent) {
     Text(
         text,
         color = color,
         style = MaterialTheme.typography.labelSmall,
         modifier =
-            Modifier.background(color.copy(alpha = .12f), RoundedCornerShape(50))
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier.background(color.copy(alpha = .12f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp),
     )
 }

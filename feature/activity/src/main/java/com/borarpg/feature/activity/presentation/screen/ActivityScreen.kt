@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,9 +34,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
+import com.borarpg.core.designsystem.theme.Accent
 import com.borarpg.core.designsystem.theme.Coral
-import com.borarpg.core.designsystem.theme.Ink
-import com.borarpg.core.designsystem.theme.Lime
+import com.borarpg.core.designsystem.theme.Cream
+import com.borarpg.core.designsystem.theme.Panel
 import com.borarpg.domain.model.location.GeoLocation
 import com.borarpg.domain.model.workout.WorkoutStatus
 import com.borarpg.feature.activity.presentation.action.ActivityAction
@@ -130,7 +132,7 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
                 historyId != null && currentWorkout == null ||
                     currentWorkout?.status == WorkoutStatus.DRAFT,
         )
-        if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Lime)
+        if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Accent)
         ActivityHeader(
             objectivesCount = visible.size,
             filter = filter,
@@ -193,17 +195,41 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
+                    val panelScroll = rememberScrollState()
+                    LaunchedEffect(selectedId) { panelScroll.scrollTo(0) }
                     Surface(
-                        shape = RoundedCornerShape(26.dp),
-                        color = Ink.copy(alpha = .97f),
-                        tonalElevation = 6.dp,
+                        shape = RoundedCornerShape(22.dp),
+                        color = Panel.copy(alpha = .98f),
+                        border = BorderStroke(1.dp, Cream.copy(alpha = .08f)),
+                        shadowElevation = 16.dp,
                     ) {
                         Column(
                             Modifier.heightIn(max = 340.dp)
-                                .verticalScroll(rememberScrollState())
+                                .verticalScroll(panelScroll)
                                 .padding(20.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
+                            if (selected != null) {
+                                ObjectiveDetails(
+                                    selected = selected,
+                                    mission = mission,
+                                    reference =
+                                        cep.target?.let {
+                                            GeoLocation(it.latitude, it.longitude)
+                                        } ?: gps.location,
+                                    fromCep = cep.target != null,
+                                    saved = savedQuests.any { it.id == selected.id },
+                                    onAccept = { onAction(ActivityAction.AcceptMission(it)) },
+                                    onClaim = { onAction(ActivityAction.ClaimMission) },
+                                    onCancel = { onAction(ActivityAction.CancelMission) },
+                                    onClose = { selectedId = null },
+                                    onToggleSaved = { quest ->
+                                        if (savedQuests.any { it.id == quest.id })
+                                            onAction(ActivityAction.DeleteQuest(quest.id))
+                                        else onAction(ActivityAction.AddQuest(quest))
+                                    },
+                                )
+                            }
                             WorkoutPanel(
                                 state = panelState,
                                 onAction = { onAction(ActivityAction.Workout(it)) },
@@ -213,7 +239,7 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
                                 mission.active?.let { active ->
                                     Text(
                                         "${active.quest.title} · ${active.steps}/${active.quest.goalSteps} passos",
-                                        color = Lime,
+                                        color = Accent,
                                         style = MaterialTheme.typography.labelMedium,
                                     )
                                     if (active.ready)
@@ -230,29 +256,7 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
                                         else "Objetivos e região"
                                     )
                                 }
-                            }
-                            if (selected != null || showDetails) {
-                                if (selected != null) {
-                                    ObjectiveDetails(
-                                        selected = selected,
-                                        mission = mission,
-                                        reference =
-                                            cep.target?.let {
-                                                GeoLocation(it.latitude, it.longitude)
-                                            } ?: gps.location,
-                                        fromCep = cep.target != null,
-                                        saved = savedQuests.any { it.id == selected.id },
-                                        onAccept = { onAction(ActivityAction.AcceptMission(it)) },
-                                        onClaim = { onAction(ActivityAction.ClaimMission) },
-                                        onCancel = { onAction(ActivityAction.CancelMission) },
-                                        onClose = { selectedId = null },
-                                        onToggleSaved = { quest ->
-                                            if (savedQuests.any { it.id == quest.id })
-                                                onAction(ActivityAction.DeleteQuest(quest.id))
-                                            else onAction(ActivityAction.AddQuest(quest))
-                                        },
-                                    )
-                                } else {
+                                if (showDetails) {
                                     LocationDetails(
                                         cep = cep,
                                         gps = gps,
@@ -277,7 +281,7 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
                             placesMessage
                                 ?.takeIf { it.contains("local", true) }
                                 ?.let { Text(it, color = Coral) }
-                            mission.message?.let { Text(it, color = Lime) }
+                            mission.message?.let { Text(it, color = Accent) }
                         }
                     }
                 }

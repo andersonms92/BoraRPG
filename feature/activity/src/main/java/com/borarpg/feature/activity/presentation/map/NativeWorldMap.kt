@@ -33,7 +33,11 @@ import org.maplibre.android.style.layers.PropertyFactory.circleOpacity
 import org.maplibre.android.style.layers.PropertyFactory.circleRadius
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth
+import org.maplibre.android.style.layers.PropertyFactory.lineCap
 import org.maplibre.android.style.layers.PropertyFactory.lineColor
+import org.maplibre.android.style.layers.PropertyFactory.lineGradient
+import org.maplibre.android.style.layers.PropertyFactory.lineJoin
+import org.maplibre.android.style.layers.PropertyFactory.lineOpacity
 import org.maplibre.android.style.layers.PropertyFactory.lineWidth
 import org.maplibre.android.style.layers.PropertyFactory.textAllowOverlap
 import org.maplibre.android.style.layers.PropertyFactory.textColor
@@ -42,6 +46,7 @@ import org.maplibre.android.style.layers.PropertyFactory.textFont
 import org.maplibre.android.style.layers.PropertyFactory.textIgnorePlacement
 import org.maplibre.android.style.layers.PropertyFactory.textSize
 import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.sources.GeoJsonOptions
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
@@ -180,13 +185,46 @@ internal fun NativeWorldMap(
                 true
             }
             controller.setStyle("https://tiles.openfreemap.org/styles/dark") { style ->
+                applyAdventureMapStyle(style)
                 val routeData =
-                    GeoJsonSource("route", FeatureCollection.fromFeatures(emptyArray<Feature>()))
+                    GeoJsonSource(
+                        "route",
+                        FeatureCollection.fromFeatures(emptyArray<Feature>()),
+                        GeoJsonOptions().withLineMetrics(true),
+                    )
                 style.addSource(routeData)
                 routeSource = routeData
                 style.addLayer(
+                    LineLayer("route-glow", "route")
+                        .withProperties(
+                            lineColor("#DD6EA1"),
+                            lineWidth(12f),
+                            lineOpacity(.18f),
+                            lineCap("round"),
+                            lineJoin("round"),
+                        )
+                )
+                style.addLayer(
                     LineLayer("route-line", "route")
-                        .withProperties(lineColor("#83BFFF"), lineWidth(5f))
+                        .withProperties(
+                            lineGradient(
+                                Expression.interpolate(
+                                    Expression.linear(),
+                                    Expression.lineProgress(),
+                                    Expression.stop(
+                                        0,
+                                        Expression.color(android.graphics.Color.rgb(221, 110, 161)),
+                                    ),
+                                    Expression.stop(
+                                        1,
+                                        Expression.color(android.graphics.Color.rgb(239, 155, 130)),
+                                    ),
+                                )
+                            ),
+                            lineWidth(5f),
+                            lineCap("round"),
+                            lineJoin("round"),
+                        )
                 )
                 val objectives = GeoJsonSource("objectives", questFeatures(latestQuests))
                 style.addSource(objectives)
@@ -195,17 +233,17 @@ internal fun NativeWorldMap(
                     CircleLayer("quests-halo", "objectives")
                         .withProperties(
                             circleRadius(19f),
-                            circleColor("#D5FA68"),
+                            circleColor("#EF9B82"),
                             circleOpacity(.16f),
                         )
                 )
                 style.addLayer(
                     CircleLayer("quests", "objectives")
                         .withProperties(
-                            circleRadius(10f),
-                            circleColor("#D5FA68"),
-                            circleStrokeWidth(3f),
-                            circleStrokeColor("#18221B"),
+                            circleRadius(12f),
+                            circleColor("#EF9B82"),
+                            circleStrokeWidth(2f),
+                            circleStrokeColor("#FFFFFF"),
                         )
                 )
                 style.addLayer(
@@ -215,9 +253,9 @@ internal fun NativeWorldMap(
                         )
                         .withProperties(
                             circleRadius(10f),
-                            circleColor("#FF9478"),
+                            circleColor("#DD6EA1"),
                             circleStrokeWidth(3f),
-                            circleStrokeColor("#18221B"),
+                            circleStrokeColor("#14182B"),
                         )
                 )
                 style.addLayer(
@@ -226,7 +264,7 @@ internal fun NativeWorldMap(
                             textField(Expression.get("glyph")),
                             textFont(arrayOf("Noto Sans Regular")),
                             textSize(13f),
-                            textColor("#18221B"),
+                            textColor("#14182B"),
                             textAllowOverlap(true),
                             textIgnorePlacement(true),
                         )
@@ -239,7 +277,7 @@ internal fun NativeWorldMap(
                     CircleLayer("player-halo", "player")
                         .withProperties(
                             circleRadius(20f),
-                            circleColor("#83BFFF"),
+                            circleColor("#C6C5F2"),
                             circleOpacity(.2f),
                         )
                 )
@@ -247,7 +285,7 @@ internal fun NativeWorldMap(
                     CircleLayer("player", "player")
                         .withProperties(
                             circleRadius(7f),
-                            circleColor("#83BFFF"),
+                            circleColor("#C6C5F2"),
                             circleStrokeWidth(3f),
                             circleStrokeColor("#FFFFFF"),
                         )
@@ -270,13 +308,26 @@ internal fun NativeWorldMap(
         }
     }
     LaunchedEffect(ready, topInset, bottomInset) {
-        if (ready)
+        if (ready) {
+            map?.uiSettings?.setLogoMargins(
+                (12 * density).toInt(),
+                topInset + (12 * density).toInt(),
+                0,
+                0,
+            )
+            map?.uiSettings?.setAttributionMargins(
+                0,
+                topInset + (12 * density).toInt(),
+                (12 * density).toInt(),
+                0,
+            )
             map?.setPadding(
                 0,
                 topInset,
                 0,
                 bottomInset.coerceAtMost((view.height - topInset - 100).coerceAtLeast(0)),
             )
+        }
     }
     LaunchedEffect(objectivesSource, quests) {
         objectivesSource?.setGeoJson(questFeatures(quests))
@@ -367,7 +418,7 @@ private fun questFeatures(quests: List<QuestPoint>) =
             Feature.fromGeometry(Point.fromLngLat(q.longitude, q.latitude)).apply {
                 addStringProperty("id", q.id)
                 addStringProperty("kind", q.kind)
-                addStringProperty("glyph", if (q.kind == "Combate") "!" else "+")
+                addStringProperty("glyph", if (q.kind == "Combate") "×" else "+")
             }
         }
     )
