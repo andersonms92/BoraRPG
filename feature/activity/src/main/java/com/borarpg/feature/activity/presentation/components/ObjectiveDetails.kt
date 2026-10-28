@@ -33,6 +33,7 @@ import com.borarpg.domain.model.mission.QuestPoint
 import com.borarpg.domain.model.workout.RoutePoint
 import com.borarpg.domain.rules.workout.routeDistance
 import com.borarpg.feature.missions.presentation.components.MissionProgressCard
+import com.borarpg.feature.missions.presentation.formatter.label
 import com.borarpg.feature.missions.presentation.state.MissionState
 
 @Composable
@@ -58,7 +59,7 @@ internal fun ObjectiveDetails(
         if (selected.description.isNotBlank())
             Text(selected.description, color = Muted, style = MaterialTheme.typography.bodyMedium)
         if (selected.goalSteps > 0) {
-            Tag("${selected.rarity} · ${selected.goalSteps} passos")
+            Tag("${selected.rarity.label} · ${selected.goalSteps} passos")
             Surface(color = Elevated.copy(alpha = .6f), shape = RoundedCornerShape(16.dp)) {
                 Row(
                     Modifier.fillMaxWidth().padding(14.dp),
@@ -112,9 +113,9 @@ internal fun ObjectiveDetails(
         ) {
             Icon(Icons.Outlined.Place, null, Modifier.size(17.dp), tint = Accent)
             Text(
-                if (distance == null) "${selected.kind} · ative o GPS para ver a distância"
+                if (distance == null) "${selected.kind.label} · ative o GPS para ver a distância"
                 else
-                    "${selected.kind} · ${if (distance < 1000) "${distance.toInt()} m" else "%.1f km".format(distance / 1000)} em linha reta${if (fromCep) " a partir do CEP" else " pelo GPS"}",
+                    "${selected.kind.label} · ${if (distance < 1000) "${distance.toInt()} m" else "%.1f km".format(distance / 1000)} em linha reta${if (fromCep) " a partir do CEP" else " pelo GPS"}",
                 color = Muted,
                 style = MaterialTheme.typography.bodySmall,
             )

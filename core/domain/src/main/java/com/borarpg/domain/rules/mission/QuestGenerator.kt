@@ -1,7 +1,9 @@
 package com.borarpg.domain.rules.mission
 
 import com.borarpg.domain.model.location.CepLocation
+import com.borarpg.domain.model.mission.QuestKind
 import com.borarpg.domain.model.mission.QuestPoint
+import com.borarpg.domain.model.mission.QuestRarity
 import java.util.UUID
 import kotlin.math.PI
 import kotlin.math.asin
@@ -18,14 +20,14 @@ object QuestGenerator {
         require(center.latitude in -90.0..90.0 && center.longitude in -180.0..180.0)
         val offset = random.nextDouble(0.0, 2 * PI)
         return (0 until MAX_OBJECTIVES).map { index ->
-            val tier =
+            val rarity =
                 when (index) {
-                    5 -> 2
+                    5 -> QuestRarity.EPIC
                     3,
-                    4 -> 1
-                    else -> 0
+                    4 -> QuestRarity.RARE
+                    else -> QuestRarity.COMMON
                 }
-            val kind = if (index % 2 == 0) "Combate" else "Exploração"
+            val kind = if (index % 2 == 0) QuestKind.COMBAT else QuestKind.EXPLORATION
             val title =
                 when (index) {
                     0 -> "Batedor das sombras"
@@ -54,38 +56,33 @@ object QuestGenerator {
                 kind = kind,
                 generated = true,
                 description =
-                    if (kind == "Combate") "Derrote o inimigo avançando com seus passos."
+                    if (kind == QuestKind.COMBAT) "Derrote o inimigo avançando com seus passos."
                     else "Avance com seus passos para abrir o tesouro.",
                 goalSteps =
-                    when (tier) {
-                        2 -> random.nextInt(1600, 2401)
-                        1 -> random.nextInt(900, 1401)
-                        else -> random.nextInt(400, 801)
+                    when (rarity) {
+                        QuestRarity.EPIC -> random.nextInt(1600, 2401)
+                        QuestRarity.RARE -> random.nextInt(900, 1401)
+                        QuestRarity.COMMON -> random.nextInt(400, 801)
                     },
                 xpReward =
-                    when (tier) {
-                        2 -> random.nextInt(300, 451)
-                        1 -> random.nextInt(150, 221)
-                        else -> random.nextInt(60, 91)
+                    when (rarity) {
+                        QuestRarity.EPIC -> random.nextInt(300, 451)
+                        QuestRarity.RARE -> random.nextInt(150, 221)
+                        QuestRarity.COMMON -> random.nextInt(60, 91)
                     },
                 goldReward =
-                    when (tier) {
-                        2 -> random.nextInt(120, 181)
-                        1 -> random.nextInt(60, 91)
-                        else -> random.nextInt(20, 41)
+                    when (rarity) {
+                        QuestRarity.EPIC -> random.nextInt(120, 181)
+                        QuestRarity.RARE -> random.nextInt(60, 91)
+                        QuestRarity.COMMON -> random.nextInt(20, 41)
                     },
                 itemReward =
-                    when (tier) {
-                        2 -> "Cristal ancestral"
-                        1 -> "Relíquia de prata"
-                        else -> "Fragmento de bronze"
+                    when (rarity) {
+                        QuestRarity.EPIC -> "Cristal ancestral"
+                        QuestRarity.RARE -> "Relíquia de prata"
+                        QuestRarity.COMMON -> "Fragmento de bronze"
                     },
-                rarity =
-                    when (tier) {
-                        2 -> "Épico"
-                        1 -> "Raro"
-                        else -> "Comum"
-                    },
+                rarity = rarity,
             )
         }
     }

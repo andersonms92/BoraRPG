@@ -2,6 +2,8 @@ package com.borarpg.domain.rules.mission
 
 import com.borarpg.domain.model.location.CepLocation
 import com.borarpg.domain.model.mission.MissionProgress
+import com.borarpg.domain.model.mission.QuestKind
+import com.borarpg.domain.model.mission.QuestRarity
 import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -25,7 +27,7 @@ class QuestGeneratorTest {
                     it.itemReward.isNotBlank()
             }
         )
-        assertEquals(setOf("Combate", "Exploração"), quests.map { it.kind }.toSet())
+        assertEquals(setOf(QuestKind.COMBAT, QuestKind.EXPLORATION), quests.map { it.kind }.toSet())
     }
 
     @Test
@@ -39,8 +41,8 @@ class QuestGeneratorTest {
     @Test
     fun rarerEncountersHaveLargerGoalsAndRewards() {
         val quests = QuestGenerator.generate(center, Random(3))
-        val common = quests.first { it.rarity == "Comum" }
-        val epic = quests.first { it.rarity == "Épico" }
+        val common = quests.first { it.rarity == QuestRarity.COMMON }
+        val epic = quests.first { it.rarity == QuestRarity.EPIC }
         assertTrue(epic.goalSteps > common.goalSteps)
         assertTrue(epic.xpReward > common.xpReward)
         assertTrue(epic.goldReward > common.goldReward)

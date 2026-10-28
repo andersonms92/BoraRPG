@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class QuestPointTest {
-    private val quest = QuestPoint("point", "Praça", -23.55, -46.63, "Exploração")
+    private val quest = QuestPoint("point", "Praça", -23.55, -46.63, QuestKind.EXPLORATION)
 
     @Test
     fun rejectsBlankOrOversizedTitles() {

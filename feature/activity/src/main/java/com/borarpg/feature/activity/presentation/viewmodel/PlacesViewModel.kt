@@ -2,6 +2,7 @@ package com.borarpg.feature.activity.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.borarpg.domain.model.mission.QuestKind
 import com.borarpg.domain.model.mission.QuestPoint
 import com.borarpg.domain.repository.LocationRepository
 import com.borarpg.domain.repository.PlayerRepository
@@ -34,7 +35,7 @@ constructor(private val repository: PlayerRepository, locationRepository: Locati
 
     fun createQuest(title: String, latitude: Double, longitude: Double) = update {
         repository.addQuest(
-            QuestPoint(UUID.randomUUID().toString(), title, latitude, longitude, "Exploração")
+            QuestPoint(UUID.randomUUID().toString(), title, latitude, longitude, QuestKind.EXPLORATION)
         )
     }
 

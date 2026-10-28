@@ -1,5 +1,8 @@
 package com.borarpg.data.local.preferences
 
+import com.borarpg.data.mapper.toQuestKind
+import com.borarpg.data.mapper.toQuestRarity
+import com.borarpg.data.mapper.toStorageValue
 import com.borarpg.domain.model.mission.QuestPoint
 import org.json.JSONArray
 import org.json.JSONObject
@@ -14,14 +17,14 @@ internal object QuestPreferencesCodec {
                 quest.getString("title"),
                 quest.getDouble("lat"),
                 quest.getDouble("lon"),
-                quest.optString("kind", "Exploração"),
+                quest.optString("kind").toQuestKind(),
                 quest.optBoolean("generated", false),
                 quest.optString("description", ""),
                 quest.optInt("goalSteps", 0),
                 quest.optInt("xpReward", 0),
                 quest.optInt("goldReward", 0),
                 quest.optString("itemReward", ""),
-                quest.optString("rarity", "Comum"),
+                quest.optString("rarity").toQuestRarity(),
             )
         }
     }
@@ -45,12 +48,12 @@ internal object QuestPreferencesCodec {
             .put("title", title.trim())
             .put("lat", latitude)
             .put("lon", longitude)
-            .put("kind", kind)
+            .put("kind", kind.toStorageValue())
             .put("generated", generated)
             .put("description", description)
             .put("goalSteps", goalSteps)
             .put("xpReward", xpReward)
             .put("goldReward", goldReward)
             .put("itemReward", itemReward)
-            .put("rarity", rarity)
+            .put("rarity", rarity.toStorageValue())
 }

@@ -44,6 +44,8 @@ import com.borarpg.core.designsystem.theme.Muted
 import com.borarpg.core.designsystem.theme.Panel
 import com.borarpg.core.designsystem.theme.Rose
 import com.borarpg.domain.model.mission.MissionProgress
+import com.borarpg.domain.model.mission.QuestRarity
+import com.borarpg.feature.missions.presentation.formatter.label
 
 @Composable
 fun MissionProgressCard(
@@ -54,9 +56,9 @@ fun MissionProgressCard(
 ) {
     val rarityColor =
         when (progress.quest.rarity) {
-            "Épico" -> Rose
-            "Raro" -> Coral
-            else -> Accent
+            QuestRarity.EPIC -> Rose
+            QuestRarity.RARE -> Coral
+            QuestRarity.COMMON -> Accent
         }
     Surface(
         shape = RoundedCornerShape(24.dp),
@@ -96,7 +98,7 @@ fun MissionProgressCard(
                     )
                 }
                 Text(
-                    progress.quest.rarity,
+                    progress.quest.rarity.label,
                     modifier =
                         Modifier.background(
                                 rarityColor.copy(alpha = .12f),

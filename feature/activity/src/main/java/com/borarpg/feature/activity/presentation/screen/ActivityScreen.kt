@@ -54,6 +54,7 @@ import com.borarpg.feature.activity.presentation.map.NativeWorldMap
 import com.borarpg.feature.activity.presentation.map.toMapLocation
 import com.borarpg.feature.activity.presentation.permissions.WorkoutControls
 import com.borarpg.feature.activity.presentation.state.ActivityUiState
+import com.borarpg.feature.activity.presentation.state.QuestFilter
 import org.maplibre.android.geometry.LatLng
 
 @Composable
@@ -74,8 +75,8 @@ internal fun ActivityScreen(state: ActivityUiState, onAction: (ActivityAction) -
     var panelExpanded by rememberSaveable { mutableStateOf(false) }
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var showCep by rememberSaveable { mutableStateOf(false) }
-    var filter by rememberSaveable { mutableStateOf("Todos") }
-    val visible = quests.filter { filter == "Todos" || it.kind == filter }
+    var filter by rememberSaveable { mutableStateOf(QuestFilter.ALL) }
+    val visible = quests.filter { filter.kind == null || it.kind == filter.kind }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     val selected = visible.firstOrNull { it.id == selectedId }
     var pending by remember { mutableStateOf<LatLng?>(null) }

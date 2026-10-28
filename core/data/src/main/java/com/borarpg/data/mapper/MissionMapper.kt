@@ -11,14 +11,14 @@ internal fun MissionEntity.toDomain() =
         title,
         latitude,
         longitude,
-        kind,
+        kind.toQuestKind(),
         true,
         description,
         goalSteps,
         xpReward,
         goldReward,
         itemReward,
-        rarity,
+        rarity.toQuestRarity(),
     )
 
 internal fun QuestPoint.toEntity(baselineSteps: Int) =
@@ -27,13 +27,13 @@ internal fun QuestPoint.toEntity(baselineSteps: Int) =
         title,
         latitude,
         longitude,
-        kind,
+        kind.toStorageValue(),
         description,
         goalSteps,
         xpReward,
         goldReward,
         itemReward,
-        rarity,
+        rarity.toStorageValue(),
         baselineSteps,
     )
 

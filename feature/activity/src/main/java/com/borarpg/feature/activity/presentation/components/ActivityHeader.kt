@@ -31,12 +31,14 @@ import com.borarpg.core.designsystem.theme.Elevated
 import com.borarpg.core.designsystem.theme.Ink
 import com.borarpg.core.designsystem.theme.Muted
 import com.borarpg.core.designsystem.theme.Panel
+import com.borarpg.feature.activity.presentation.state.QuestFilter
+import com.borarpg.feature.missions.presentation.formatter.label
 
 @Composable
 internal fun ActivityHeader(
     objectivesCount: Int,
-    filter: String,
-    onFilter: (String) -> Unit,
+    filter: QuestFilter,
+    onFilter: (QuestFilter) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -87,12 +89,12 @@ internal fun ActivityHeader(
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            listOf("Todos", "Combate", "Exploração").forEach { label ->
-                val selected = filter == label
+            QuestFilter.entries.forEach { option ->
+                val selected = filter == option
                 FilterChip(
                     selected = selected,
-                    onClick = { onFilter(label) },
-                    label = { Text(label) },
+                    onClick = { onFilter(option) },
+                    label = { Text(option.kind?.label ?: "Todos") },
                     shape = RoundedCornerShape(12.dp),
                     colors =
                         FilterChipDefaults.filterChipColors(

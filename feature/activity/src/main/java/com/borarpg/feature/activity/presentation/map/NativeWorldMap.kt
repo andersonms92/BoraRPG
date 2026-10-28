@@ -17,6 +17,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.borarpg.domain.model.location.CepLocation
+import com.borarpg.domain.model.mission.QuestKind
 import com.borarpg.domain.model.mission.QuestPoint
 import com.borarpg.domain.model.workout.RoutePoint
 import org.maplibre.android.MapLibre
@@ -249,7 +250,10 @@ internal fun NativeWorldMap(
                 style.addLayer(
                     CircleLayer("combat", "objectives")
                         .withFilter(
-                            Expression.eq(Expression.get("kind"), Expression.literal("Combate"))
+                            Expression.eq(
+                                Expression.get("kind"),
+                                Expression.literal(QuestKind.COMBAT.name),
+                            )
                         )
                         .withProperties(
                             circleRadius(10f),
@@ -417,8 +421,8 @@ private fun questFeatures(quests: List<QuestPoint>) =
         quests.map { q ->
             Feature.fromGeometry(Point.fromLngLat(q.longitude, q.latitude)).apply {
                 addStringProperty("id", q.id)
-                addStringProperty("kind", q.kind)
-                addStringProperty("glyph", if (q.kind == "Combate") "×" else "+")
+                addStringProperty("kind", q.kind.name)
+                addStringProperty("glyph", if (q.kind == QuestKind.COMBAT) "×" else "+")
             }
         }
     )
