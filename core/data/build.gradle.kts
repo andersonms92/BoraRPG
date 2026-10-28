@@ -16,6 +16,13 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.datastore)
     implementation(libs.coroutines)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.moshi)
+    implementation(libs.moshi)
+    implementation(libs.okhttp)
+    ksp(libs.moshi.codegen)
+    testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation(libs.android.test.runner)
     androidTestImplementation(libs.android.test.junit)
 }

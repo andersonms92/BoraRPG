@@ -7,6 +7,7 @@ import com.borarpg.domain.model.location.CepLocation
 import com.borarpg.domain.repository.CepRepository
 import com.borarpg.domain.rules.location.normalizeCep
 import com.borarpg.domain.rules.mission.QuestGenerator
+import com.borarpg.feature.activity.presentation.formatter.message
 import com.borarpg.feature.activity.presentation.state.CepState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -53,13 +54,13 @@ class CepViewModel @Inject constructor(private val repository: CepRepository) : 
             } catch (e: CancellationException) {
                 throw e
             } catch (e: CepLookupException) {
-                mutable.update { it.copy(loading = false, error = e.message) }
+                mutable.update { it.copy(loading = false, error = e.error.message) }
             } catch (_: Exception) {
                 mutable.update {
                     it.copy(
                         loading = false,
                         error =
-                            "Não foi possível consultar o CEP. Verifique sua conexão e tente novamente.",
+                            "Não foi possível concluir a busca. Tente novamente.",
                     )
                 }
             }
