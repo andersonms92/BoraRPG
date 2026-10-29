@@ -35,14 +35,14 @@ class AdventureRepositoryTest {
     @Test
     fun victoryEventIsReturnedAfterStepsAndRewardsArePersisted() = runBlocking {
         withStore { db, repository ->
-            assertNull(repository.recordSteps(999))
+            assertNull(repository.recordSteps(4999))
             assertEquals(1, db.heroDao().get()!!.hp)
             assertEquals(GuardianDefeat(1, 1, 50, 25), repository.recordSteps(1))
             val hero = db.heroDao().get()!!
-            assertEquals(1000, hero.steps)
-            assertEquals(1000, hero.hp)
+            assertEquals(5000, hero.steps)
+            assertEquals(5000, hero.hp)
             assertEquals(1, hero.victories)
-            assertEquals(150, hero.xp)
+            assertEquals(550, hero.xp)
             assertEquals(25, hero.gold)
         }
     }
@@ -50,22 +50,24 @@ class AdventureRepositoryTest {
     @Test
     fun batchedVictoriesReturnOneEventContainingOnlyVictoryBonuses() = runBlocking {
         withStore { db, repository ->
-            assertEquals(GuardianDefeat(2, 2, 100, 50), repository.recordSteps(2501))
+            assertEquals(GuardianDefeat(2, 2, 100, 50), repository.recordSteps(12501))
             val hero = db.heroDao().get()!!
-            assertEquals(350, hero.xp)
+            assertEquals(1350, hero.xp)
             assertEquals(50, hero.gold)
-            assertEquals(499, hero.hp)
+            assertEquals(2499, hero.hp)
+            assertEquals(12501, hero.steps)
         }
     }
 
     @Test
     fun existingVictoriesNeverReplayWhenOpeningOrContinuingProgress() = runBlocking {
         withStore { db, repository ->
-            db.heroDao().save(HeroEntity(xp = 699, gold = 158, hp = 4, victories = 1, steps = 1996))
+            db.heroDao()
+                .save(HeroEntity(xp = 699, gold = 158, hp = 4004, victories = 1, steps = 1996))
             assertEquals(1, repository.hero.first().victories)
             val reopened = AdventureRepositoryImpl(db)
             assertEquals(1, reopened.hero.first().victories)
-            assertNull(reopened.recordSteps(3))
+            assertNull(reopened.recordSteps(4003))
             assertEquals(GuardianDefeat(1, 2, 50, 25), reopened.recordSteps(1))
             assertEquals(2, db.heroDao().get()!!.victories)
         }
@@ -76,8 +78,8 @@ class AdventureRepositoryTest {
         withStore { db, repository ->
             val events = coroutineScope {
                 listOf(
-                        async(Dispatchers.Default) { repository.recordSteps(1000) },
-                        async(Dispatchers.Default) { repository.recordSteps(1000) },
+                        async(Dispatchers.Default) { repository.recordSteps(5000) },
+                        async(Dispatchers.Default) { repository.recordSteps(5000) },
                     )
                     .awaitAll()
                     .filterNotNull()
@@ -85,14 +87,14 @@ class AdventureRepositoryTest {
             assertEquals(listOf(1, 2), events.map { it.totalVictories }.sorted())
             assertTrue(events.all { it.victories == 1 && it.bonusXp == 50 && it.gold == 25 })
             assertEquals(2, db.heroDao().get()!!.victories)
-            assertEquals(2000, db.heroDao().get()!!.steps)
+            assertEquals(10000, db.heroDao().get()!!.steps)
         }
     }
 
     @Test
     fun failedTransactionCannotReturnAVictoryOrPersistItsRewards() = runBlocking {
         withStore { db, repository ->
-            val original = HeroEntity(hp = 1, steps = 999)
+            val original = HeroEntity(hp = 1, steps = 4999)
             db.heroDao().save(original)
             db.openHelper.writableDatabase.execSQL(
                 "CREATE TRIGGER reject_hero_update BEFORE UPDATE ON hero BEGIN SELECT RAISE(ABORT, 'failure'); END"

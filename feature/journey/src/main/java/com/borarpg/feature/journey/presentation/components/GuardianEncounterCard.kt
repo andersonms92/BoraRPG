@@ -36,10 +36,15 @@ import java.text.NumberFormat
 @Composable
 internal fun GuardianEncounterCard(hero: Hero) {
     val numbers = NumberFormat.getIntegerInstance()
+    val guardianHealth = numbers.format(Combat.GUARDIAN_HEALTH)
     val victories =
         if (hero.victories == 1) "1 guardião derrotado"
         else "${numbers.format(hero.victories)} guardiões derrotados"
-    val hp by animateFloatAsState(hero.hp / 1000f, label = "Vida do guardião")
+    val hp by
+        animateFloatAsState(
+            (hero.hp.toFloat() / Combat.GUARDIAN_HEALTH).coerceIn(0f, 1f),
+            label = "Vida do guardião",
+        )
     Surface(shape = RoundedCornerShape(24.dp), color = Panel) {
         Column(
             Modifier.fillMaxWidth().padding(20.dp),
@@ -73,7 +78,7 @@ internal fun GuardianEncounterCard(hero: Hero) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Vida do guardião", style = MaterialTheme.typography.bodySmall, color = Muted)
                 Text(
-                    "${hero.hp} / 1.000",
+                    "${numbers.format(hero.hp)} / $guardianHealth",
                     style = MaterialTheme.typography.labelMedium,
                     color = Cream,
                     fontWeight = FontWeight.Bold,
@@ -91,7 +96,7 @@ internal fun GuardianEncounterCard(hero: Hero) {
                 style = MaterialTheme.typography.labelMedium,
             )
             Text(
-                "Cada passo na atividade causa 1 de dano. Ao derrotar um guardião, outro surge com 1.000 de vida.",
+                "Cada passo na atividade causa 1 de dano. Ao derrotar um guardião, outro surge com $guardianHealth de vida.",
                 color = Muted,
                 style = MaterialTheme.typography.bodySmall,
             )

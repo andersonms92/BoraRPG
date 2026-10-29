@@ -20,7 +20,7 @@ import com.borarpg.data.local.entity.WorkoutPointEntity
             WorkoutEntity::class,
             WorkoutPointEntity::class,
         ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 internal abstract class GameDatabase : RoomDatabase() {

@@ -35,10 +35,10 @@ class StepCounterTest {
 
     @Test
     fun rewardsDoNotDependOnSensorBatchSize() {
-        val batched = Combat.advance(Hero(), 2501)
-        val individual = (1..2501).fold(Hero()) { hero, _ -> Combat.advance(hero, 1) }
+        val batched = Combat.advance(Hero(), 12501)
+        val individual = (1..12501).fold(Hero()) { hero, _ -> Combat.advance(hero, 1) }
         assertEquals(batched, individual)
         assertEquals(2, batched.victories)
-        assertEquals(499, batched.hp)
+        assertEquals(2499, batched.hp)
     }
 }
