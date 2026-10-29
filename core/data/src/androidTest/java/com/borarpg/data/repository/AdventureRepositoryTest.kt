@@ -23,10 +23,10 @@ import org.junit.runner.RunWith
 class AdventureRepositoryTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
-    private suspend fun withStore(test: suspend (GameDatabase, RoomAdventureRepository) -> Unit) {
+    private suspend fun withStore(test: suspend (GameDatabase, AdventureRepositoryImpl) -> Unit) {
         val db = Room.inMemoryDatabaseBuilder(context, GameDatabase::class.java).build()
         try {
-            test(db, RoomAdventureRepository(db))
+            test(db, AdventureRepositoryImpl(db))
         } finally {
             db.close()
         }
@@ -63,7 +63,7 @@ class AdventureRepositoryTest {
         withStore { db, repository ->
             db.heroDao().save(HeroEntity(xp = 699, gold = 158, hp = 4, victories = 1, steps = 1996))
             assertEquals(1, repository.hero.first().victories)
-            val reopened = RoomAdventureRepository(db)
+            val reopened = AdventureRepositoryImpl(db)
             assertEquals(1, reopened.hero.first().victories)
             assertNull(reopened.recordSteps(3))
             assertEquals(GuardianDefeat(1, 2, 50, 25), reopened.recordSteps(1))

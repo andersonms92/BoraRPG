@@ -10,7 +10,7 @@ import com.borarpg.data.local.entity.WorkoutPointEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface WorkoutDao {
+internal interface WorkoutDao {
     @Query("SELECT * FROM workouts ORDER BY startedAt DESC")
     fun observe(): Flow<List<WorkoutEntity>>
 

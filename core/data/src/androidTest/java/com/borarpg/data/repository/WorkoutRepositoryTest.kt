@@ -26,10 +26,10 @@ class WorkoutRepositoryTest {
     private val route =
         listOf(RoutePoint(-23.55, -46.63, 1000, 0), RoutePoint(-23.551, -46.63, 5000, 1))
 
-    private suspend fun withStore(test: suspend (WorkoutDao, RoomWorkoutRepository) -> Unit) {
+    private suspend fun withStore(test: suspend (WorkoutDao, WorkoutRepositoryImpl) -> Unit) {
         val db = Room.inMemoryDatabaseBuilder(context, GameDatabase::class.java).build()
         try {
-            test(db.workoutDao(), RoomWorkoutRepository(db, Dispatchers.Default))
+            test(db.workoutDao(), WorkoutRepositoryImpl(db, Dispatchers.Default))
         } finally {
             db.close()
         }

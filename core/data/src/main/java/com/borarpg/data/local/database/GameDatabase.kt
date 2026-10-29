@@ -23,7 +23,7 @@ import com.borarpg.data.local.entity.WorkoutPointEntity
     version = 5,
     exportSchema = true,
 )
-abstract class GameDatabase : RoomDatabase() {
+internal abstract class GameDatabase : RoomDatabase() {
     abstract fun heroDao(): HeroDao
 
     abstract fun missionDao(): MissionDao

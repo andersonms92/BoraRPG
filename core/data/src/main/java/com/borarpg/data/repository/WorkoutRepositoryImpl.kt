@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 @Singleton
-class RoomWorkoutRepository
+internal class WorkoutRepositoryImpl
 @Inject
 constructor(
     private val db: GameDatabase,

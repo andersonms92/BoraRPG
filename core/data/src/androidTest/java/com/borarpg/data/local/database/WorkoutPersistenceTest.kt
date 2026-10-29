@@ -11,8 +11,8 @@ import com.borarpg.data.local.entity.WorkoutEntity
 import com.borarpg.data.local.entity.WorkoutPointEntity
 import com.borarpg.data.local.migration.DatabaseMigrations
 import com.borarpg.data.mapper.toDomain
-import com.borarpg.data.repository.RoomMissionRepository
-import com.borarpg.data.repository.RoomWorkoutRepository
+import com.borarpg.data.repository.MissionRepositoryImpl
+import com.borarpg.data.repository.WorkoutRepositoryImpl
 import com.borarpg.domain.model.location.CepLocation
 import com.borarpg.domain.model.workout.RoutePoint
 import com.borarpg.domain.model.workout.WorkoutStatus
@@ -132,7 +132,7 @@ class WorkoutPersistenceTest {
     fun rewardCanOnlyBeClaimedOnce() = runBlocking {
         val db = Room.inMemoryDatabaseBuilder(context, GameDatabase::class.java).build()
         try {
-            val missions = RoomMissionRepository(db)
+            val missions = MissionRepositoryImpl(db)
             val quest =
                 QuestGenerator.generate(CepLocation("01310100", "Rua", -23.55, -46.63)).first()
             missions.accept(quest)
@@ -191,7 +191,7 @@ class WorkoutPersistenceTest {
                 .addMigrations(*DatabaseMigrations.all)
                 .build()
         try {
-            val result = RoomWorkoutRepository(db, Dispatchers.Default).workouts.first().single()
+            val result = WorkoutRepositoryImpl(db, Dispatchers.Default).workouts.first().single()
             assertEquals("legacy", result.id)
             assertEquals(WorkoutStatus.SAVED, result.status)
             assertEquals(60_000L, result.elapsedMillis)
@@ -250,7 +250,7 @@ class WorkoutPersistenceTest {
         try {
             assertEquals(42, db.heroDao().get()!!.xp)
             assertEquals(2, db.missionDao().inventory().first().single().quantity)
-            val result = RoomWorkoutRepository(db, Dispatchers.Default).workouts.first().single()
+            val result = WorkoutRepositoryImpl(db, Dispatchers.Default).workouts.first().single()
             assertEquals("existing", result.id)
             assertEquals(WorkoutStatus.SAVED, result.status)
             assertEquals(60_000L, result.elapsedMillis)

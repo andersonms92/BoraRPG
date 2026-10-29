@@ -7,7 +7,7 @@ import com.borarpg.data.local.entity.HeroEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface HeroDao {
+internal interface HeroDao {
     @Query("SELECT * FROM hero WHERE id = 1") fun observe(): Flow<HeroEntity?>
 
     @Query("SELECT * FROM hero WHERE id = 1") suspend fun get(): HeroEntity?

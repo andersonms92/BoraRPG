@@ -13,7 +13,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.flow.map
 
 @Singleton
-class RoomAdventureRepository @Inject constructor(private val db: GameDatabase) :
+internal class AdventureRepositoryImpl @Inject constructor(private val db: GameDatabase) :
     AdventureRepository {
     override val hero = db.heroDao().observe().map { (it ?: HeroEntity()).toDomain() }
 

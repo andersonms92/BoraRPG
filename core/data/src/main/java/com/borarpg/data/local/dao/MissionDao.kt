@@ -8,7 +8,7 @@ import com.borarpg.data.local.entity.MissionEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface MissionDao {
+internal interface MissionDao {
     @Query("SELECT * FROM missions WHERE status = 'active' LIMIT 1")
     fun observeActive(): Flow<MissionEntity?>
 

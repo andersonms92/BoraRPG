@@ -18,7 +18,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 
 @Singleton
-class AndroidLocationRepository
+internal class LocationRepositoryImpl
 @Inject
 constructor(@param:ApplicationContext private val context: Context) : LocationRepository {
     override fun updates() = callbackFlow {

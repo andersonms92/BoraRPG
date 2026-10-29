@@ -16,7 +16,7 @@ import androidx.room.ForeignKey
             )
         ],
 )
-data class WorkoutPointEntity(
+internal data class WorkoutPointEntity(
     val workoutId: String,
     val position: Int,
     val latitude: Double,

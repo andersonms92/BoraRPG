@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
 @Singleton
-class DataStorePlayerRepository @Inject constructor(@ApplicationContext context: Context) :
+internal class PlayerRepositoryImpl @Inject constructor(@ApplicationContext context: Context) :
     PlayerRepository {
     private val store = context.applicationContext.playerStore
     private val preferences =

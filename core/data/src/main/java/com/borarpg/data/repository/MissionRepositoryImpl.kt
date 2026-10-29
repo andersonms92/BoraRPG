@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 @Singleton
-class RoomMissionRepository @Inject constructor(private val db: GameDatabase) : MissionRepository {
+internal class MissionRepositoryImpl @Inject constructor(private val db: GameDatabase) : MissionRepository {
     private val dao = db.missionDao()
     override val active =
         combine(dao.observeActive(), db.heroDao().observe()) { mission, hero ->
