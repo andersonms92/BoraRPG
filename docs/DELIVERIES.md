@@ -34,7 +34,8 @@ O histórico inicial foi organizado retrospectivamente a partir do protótipo ex
 27. Estimativa de kcal e médias atualizada para atividades sem peso original, com identificação do peso atual e acesso ao perfil. Histórico acessível na barra do mapa, com resumos e seleção de percurso.
 28. Progressão de XP mais lenta e crescente, preservando os valores acumulados, e indicação explícita do número do guardião e das vitórias.
 29. Notificações de novas derrotas emitidas após a transação de progresso, com bônus por vitória, agrupamento de lotes e respeito às permissões do Android.
+30. Guardiões com 5.000 de vida e migração Room 5→6, preservando os passos, o dano causado, as vitórias e as recompensas existentes.
 
 As primeiras etapas usavam demonstrações e busca de locais externos. A versão atual registra passos reais e gera encontros virtuais ao redor do CEP, sem Overpass. O painel do exercício e o histórico ficam na aba Atividade.
 
-A reorganização mantém `borarpg.db` na versão 5, com identidade `ea976d3679146d8b01d46e65885c1c8c`. Apenas o FQN de `GameDatabase` e o diretório dos schemas mudaram para `com.borarpg.data.local.database.GameDatabase`; os schemas e as migrações existentes foram preservados.
+O banco `borarpg.db` está na versão 6. A migração 5→6 adapta a vida restante do guardião à nova dificuldade sem modificar tabelas; os schemas históricos e as migrações anteriores foram preservados. O FQN de `GameDatabase` e o diretório dos schemas continuam sendo `com.borarpg.data.local.database.GameDatabase`.

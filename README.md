@@ -28,7 +28,9 @@ Aceitar uma missão inicia uma meta de passos futuros. Os passos reais registrad
 
 Cada passo registrado também causa dano no combate da jornada; cada dez passos concedem um XP. Uma vitória concede 50 XP, 25 de ouro e um fragmento. A primeira leitura do sensor estabelece a referência; passos anteriores à atividade ou feitos durante pausas não entram na contagem.
 
-Ao chegar a zero de vida, o guardião é derrotado e outro surge com 1.000 de vida. A Jornada mostra o número do encontro e o total de vitórias: 1.996 passos representam uma vitória e o segundo guardião com 4 de vida. Novas derrotas confirmadas no banco geram uma notificação com as recompensas; lotes de passos que vencem vários guardiões geram um único aviso agrupado. Avisos antigos não são repetidos ao reabrir o app. A exibição respeita as permissões de notificação e as configurações do Android.
+Cada guardião tem 5.000 de vida e exige 5.000 passos para ser derrotado. A Jornada mostra o número do encontro e o total de vitórias: em uma jornada nova, 4.996 passos deixam o primeiro guardião com 4 de vida. Ao derrotá-lo, outro surge com a vida completa. Novas derrotas confirmadas no banco geram uma notificação com as recompensas; lotes de passos que vencem vários guardiões geram um único aviso agrupado. Avisos antigos não são repetidos ao reabrir o app. A exibição respeita as permissões de notificação e as configurações do Android.
+
+A atualização preserva passos, vitórias, XP, ouro e o dano já causado ao guardião atual. A migração acrescenta 4.000 à vida restante uma única vez: um guardião com 4 de vida passa a ter 4.004, mantendo os 996 pontos de dano anteriores. Vitórias anteriores não são recalculadas nem geram novas recompensas.
 
 A progressão começa com 1.000 XP para atingir o nível 2. Cada passagem seguinte exige 250 XP a mais: 1.250, 1.500, 1.750 e assim por diante. O XP total, ouro, itens e vitórias existentes são preservados; o nível e a barra são recalculados pela nova curva. Por exemplo, 699 XP correspondem ao nível 1, faltando 301 XP para o nível 2.
 
@@ -38,7 +40,7 @@ MapLibre Native e OpenFreeMap renderizam o mapa online. O GPS ou a busca de CEP 
 
 Perfil, progresso, missões, inventário e percursos ficam no aparelho. Não há API própria ou sincronização entre dispositivos. O provedor de mapas recebe a região visualizada e a BrasilAPI recebe o CEP consultado. Não há mais consultas à Overpass API. A localização de visualização do mapa só é coletada enquanto a tela está aberta; durante uma atividade, o serviço mantém a coleta GPS até pausar ou finalizar.
 
-A migração Room 1→2 remove apenas o progresso simulado antigo. As migrações 2→3 e 3→4 acrescentam missões, inventário e atividades, preservando o progresso real. A migração 4→5 transfere os percursos JSON para uma tabela de pontos, preservando coordenadas, ordem, segmentos e resultados.
+A migração Room 1→2 remove apenas o progresso simulado antigo. As migrações 2→3 e 3→4 acrescentam missões, inventário e atividades, preservando o progresso real. A migração 4→5 transfere os percursos JSON para uma tabela de pontos, preservando coordenadas, ordem, segmentos e resultados. A migração 5→6 adapta a vida restante dos guardiões à nova dificuldade sem alterar os demais dados.
 
 ## Módulos e injeção de dependências
 
@@ -68,7 +70,7 @@ As composables `Route` obtêm ViewModels pelo Hilt, coletam estados com o ciclo 
 
 `QuestPoint` valida título e coordenadas; `MissionRules` valida metas e calcula recompensas no domínio. Os repositórios executam as regras de missão dentro das transações que também atualizam missões, progresso e inventário. `WorkoutType` contém apenas modalidades; rótulos e formatação de duração ficam em `feature:activity/presentation/formatter`.
 
-O banco continua sendo `borarpg.db`, versão 5, com identidade `ea976d3679146d8b01d46e65885c1c8c`. A organização dos pacotes mudou o FQN para `com.borarpg.data.local.database.GameDatabase` e o diretório de schemas correspondente; essa mudança não modifica tabelas nem requer nova migração. Os pontos são gravados incrementalmente na mesma transação do resumo. O histórico observa resumos; o percurso é consultado apenas para a atividade exibida. Salvar e descartar retornam resultados explícitos e usam transições condicionais.
+O banco continua sendo `borarpg.db`, agora na versão 6. O FQN é `com.borarpg.data.local.database.GameDatabase`, com schemas no diretório correspondente. Os schemas históricos 1 a 5 permanecem intactos; a migração 5→6 atualiza somente a vida restante do guardião, sem modificar a estrutura das tabelas. Os pontos são gravados incrementalmente na mesma transação do resumo. O histórico observa resumos; o percurso é consultado apenas para a atividade exibida. Salvar e descartar retornam resultados explícitos e usam transições condicionais.
 
 O perfil de domínio contém medidas numéricas; `ProfileForm` guarda e valida os textos da edição, incluindo vírgula decimal. `QuestKind`, `QuestRarity` e `QuestFilter` representam categorias fechadas; rótulos ficam na apresentação. Mappers aceitam valores legados do Room/DataStore e gravam códigos estáveis, sem mudar o esquema ou apagar dados.
 
@@ -91,6 +93,6 @@ Com um emulador ou aparelho de teste selecionado:
 
 Os testes JVM cobrem regras de RPG, invariantes dos objetivos, perfil, sensor, filtros GPS, pausas, tempo e transições da sessão. Os testes de apresentação verificam formatação, formulário, ações, estado da tela, histórico, erros e proteção contra salvamento duplicado.
 
-Os testes instrumentados verificam persistência após reabrir o banco, migrações 2→5 e 4→5, abertura de banco v5 existente após a reorganização dos pacotes, gravação incremental, rollback, exclusão em cascata, resgate único de recompensas e criação dos ViewModels pelo Hilt na Activity real.
+Os testes instrumentados verificam persistência após reabrir o banco, migrações 2→6, 4→6 e 5→6, preservação do progresso na mudança de dificuldade, gravação incremental, rollback, exclusão em cascata, resgate único de recompensas e criação dos ViewModels pelo Hilt na Activity real.
 
 Referências: [Hilt e Gradle](https://dagger.dev/hilt/gradle-setup), [ViewModels com Hilt](https://dagger.dev/hilt/view-model.html) e [Hilt em aplicações com vários módulos](https://developer.android.com/training/dependency-injection/hilt-multi-module).

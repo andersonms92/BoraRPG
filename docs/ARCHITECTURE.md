@@ -134,11 +134,13 @@ A busca de CEP segue `CepViewModel → FindCepUseCase → CepRepository → CepR
 
 `AdventureRepository.recordSteps` retorna `GuardianDefeat` somente quando o lote gera novas vitórias. `AdventureRepositoryImpl` calcula o evento dentro da transação e o retorna após confirmar passos e recompensas. Consultar o progresso existente não gera eventos. `LevelProgression` calcula o nível a partir do XP total, com requisitos progressivos; alterar a curva não modifica o progresso persistido.
 
+`Combat.GUARDIAN_HEALTH` define os 5.000 pontos de vida de cada guardião, usados no cálculo do combate e na apresentação. Cada passo causa um ponto de dano; lotes podem derrotar mais de um guardião, preservando o dano excedente no próximo encontro. As recompensas continuam sendo 50 XP e 25 de ouro por vitória, além do XP por passos.
+
 `QuestKind`, `QuestRarity` e o filtro de apresentação `QuestFilter` substituem categorias textuais. Rótulos como “Combate” e “Comum” ficam na apresentação. `QuestCategoryMapper` converte códigos estáveis de armazenamento e aceita os rótulos antigos em português, incluindo diferenças de maiúsculas/minúsculas. Valores desconhecidos ou ausentes usam alternativas explícitas. Títulos, nomes, descrições e IDs continuam texto livre. Os tipos/status serializados das entidades pertencem à fronteira de persistência e são convertidos para os enums do domínio.
 
 Salvar e descartar retornam `APPLIED`, `NOT_FOUND` ou `INVALID_STATE`. As consultas condicionais impedem alterações incompatíveis e checkpoints tardios sobre resultados finalizados.
 
-O arquivo continua sendo `borarpg.db`, na versão **5**, com identidade **`ea976d3679146d8b01d46e65885c1c8c`**. A reorganização mudou somente o FQN da classe para `com.borarpg.data.local.database.GameDatabase` e o diretório de exportação para `core/data/schemas/com.borarpg.data.local.database.GameDatabase`. Os schemas históricos foram movidos com o mesmo conteúdo. A alteração de pacote não muda tabelas nem exige migração adicional. A migração 4→5 já existente continua convertendo os percursos JSON em pontos ordenados.
+O arquivo continua sendo `borarpg.db`, na versão **6**, com FQN `com.borarpg.data.local.database.GameDatabase` e schemas exportados em `core/data/schemas/com.borarpg.data.local.database.GameDatabase`. Os schemas históricos 1 a 5 permanecem com o mesmo conteúdo. A migração 4→5 continua convertendo os percursos JSON em pontos ordenados. A migração 5→6 acrescenta 4.000 à vida restante do guardião, preservando passos, dano já causado, vitórias, XP, ouro e demais registros. Essa atualização ocorre uma única vez pelo controle de versão do Room e não produz eventos de derrota. Como a estrutura das tabelas não muda, a identidade do schema pode permanecer igual à da versão 5.
 
 ## Integração Android
 
@@ -183,4 +185,4 @@ Em `app/navigation`, `AppDestination` representa as abas como enum, substituindo
 
 `checkArchitectureRules` exercita cenários positivos e negativos das próprias regras antes da inspeção do projeto.
 
-A suíte JVM exercita regras, invariantes, sessão, formulário, formatação e ViewModels. Os testes instrumentados verificam persistência, migrações, abertura de banco v5 existente após a mudança de pacote, atomicidade, cascata, resgate único e composição Hilt. Os comandos estão no [README](../README.md). Precisão do GPS, bateria e execução prolongada também exigem validação em aparelho físico.
+A suíte JVM exercita regras, invariantes, sessão, formulário, formatação e ViewModels. Os testes instrumentados verificam persistência, migrações até a versão 6, preservação do progresso na mudança de dificuldade e após reabrir o banco, atomicidade, cascata, resgate único e composição Hilt. Os comandos estão no [README](../README.md). Precisão do GPS, bateria e execução prolongada também exigem validação em aparelho físico.
