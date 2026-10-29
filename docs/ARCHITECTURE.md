@@ -16,7 +16,19 @@ flowchart TD
     tracking --> domain
 ```
 
-As setas representam dependências de compilação. Jornada, Atividade e Mochila também dependem de `feature:missions` para reutilizar sua apresentação. Os ViewModels recebem interfaces de domínio; Hilt conecta os contratos aos repositórios e ao acompanhamento Android. As features não importam DAOs, entidades Room ou o serviço.
+As setas representam dependências de compilação. `core` é um agrupamento de diretórios: `core:domain` e `core:data` possuem builds e limites de compilação independentes. O domínio não conhece as implementações. Jornada, Atividade e Mochila também dependem de `feature:missions` para reutilizar sua apresentação.
+
+Os ViewModels recebem casos de uso de domínio. Estes acessam contratos de repositório, implementados exclusivamente em dados. Hilt conecta interface e implementação com `@Binds`; `app/di/UseCaseModule` constrói os casos de uso sem introduzir injeção no domínio. Não há necessidade de uma segunda interface Bridge que duplique o contrato do repositório.
+
+```text
+Screen → ação → ViewModel → caso de uso → Repository (contrato do domínio)
+                                             ↑ implementado por
+                                      RepositoryImpl (data)
+                                             ↓
+                                    Room / DataStore / Retrofit
+```
+
+O acesso a `WorkoutTracker` também passa por um contrato de domínio. As features não importam implementações, banco, DAOs, entidades ou transporte de rede. As classes de infraestrutura de dados são `internal`, inclusive quando o módulo `app` inclui `core:data` para a composição Hilt.
 
 ## Organização dos módulos
 
@@ -40,6 +52,13 @@ core:domain
 │   ├── player
 │   └── workout
 ├── repository
+├── usecase
+│   ├── hero
+│   ├── location
+│   ├── mission
+│   ├── player
+│   ├── quest
+│   └── workout
 ├── rules
 │   ├── combat
 │   ├── location
@@ -87,7 +106,9 @@ core:designsystem
 
 ## Domínio
 
-`core:domain` usa Kotlin/JVM e coroutines, sem Android, Room ou Hilt. `model` contém tipos de negócio; `repository` define contratos de armazenamento e consulta; `tracking` define `WorkoutTracker` e `WorkoutTimeSource`; `rules` reúne cálculos e coordenação; `error` contém a exceção de consulta de CEP.
+`core:domain` usa Kotlin/JVM e coroutines, sem Android, Room, Retrofit ou Hilt. `model` contém tipos de negócio; `repository` define contratos de armazenamento e consulta; `usecase` define as operações consumidas pela apresentação; `tracking` define `WorkoutTracker` e `WorkoutTimeSource`; `rules` reúne cálculos e coordenação; `error` contém a exceção de consulta de CEP.
+
+Todos os ViewModels usam casos de uso para consultar ou alterar dados. `FindCepUseCase` valida e normaliza o CEP; `CreateQuestUseCase` valida os dados do objetivo, limpa o título e recebe uma fábrica de IDs; `GenerateObjectivesUseCase` encapsula a geração aleatória. `ObserveMissionsUseCase` reúne progresso, inventário e resgates em `MissionOverview`. Salvar perfil e aceitar missão também validam o domínio antes da persistência.
 
 `QuestPoint` exige título não vazio de até 60 caracteres e coordenadas válidas. `PlayerProfile` mantém medidas numéricas e seus limites. `MissionRules` valida os requisitos de uma missão gerada e calcula a recompensa somente quando a meta foi concluída. Essas regras independem do banco.
 
@@ -95,19 +116,25 @@ core:designsystem
 
 `WorkoutSessionManager` coordena iniciar, pausar, retomar, finalizar e cancelar. Recebe os contratos de repositório, relógio e gerador de ID. Usa tempo monotônico para duração e tempo civil para o início. Retomar reinicia a referência do sensor e cria um segmento; deslocamentos entre segmentos não entram na distância. Finalizar produz um rascunho, que pode ser salvo ou descartado separadamente.
 
-O serviço chama seus métodos serialmente. O gerenciador publica a transição após persistir o checkpoint; sessões interrompidas podem ser recuperadas como pausadas. `WorkoutClock`, `StepCounter`, os filtros de GPS e os cálculos de distância e calorias também ficam no domínio. Consultas simples usam os contratos diretamente, sem classes que apenas repassem chamadas.
+O serviço chama seus métodos serialmente. O gerenciador publica a transição após persistir o checkpoint; sessões interrompidas podem ser recuperadas como pausadas. `WorkoutClock`, `StepCounter`, os filtros de GPS e os cálculos de distância e calorias também ficam no domínio. Os casos de uso estabelecem a fronteira de acesso da apresentação; somente eles, as regras de domínio e a composição Hilt recebem contratos de repositório fora de dados.
 
 ## Dados e compatibilidade
 
 `local/database` contém `GameDatabase`; `dao` contém consultas; `entity` contém as representações Room; `migration` contém as migrações; `preferences` contém as chaves DataStore e o codec dos objetivos. Conversões entre persistência, resposta remota e domínio ficam em `mapper`.
 
-`repository` implementa os contratos de domínio. `RoomAdventureRepository` e `RoomMissionRepository` executam regras e atualizações na mesma transação. No resgate, experiência, ouro, inventário e estado da missão são confirmados juntos; o repositório também impede uma segunda missão ativa e resgate duplicado. As regras de recompensa permanecem em `MissionRules`.
+`repository` implementa os contratos de domínio com classes `internal` terminadas em `RepositoryImpl`. `AdventureRepositoryImpl` e `MissionRepositoryImpl` executam regras e atualizações na mesma transação. No resgate, experiência, ouro, inventário e estado da missão são confirmados juntos; o repositório também impede uma segunda missão ativa e resgate duplicado. As regras de recompensa permanecem em `MissionRules`.
 
-`DataStorePlayerRepository` armazena perfil e objetivos pessoais. `HttpCepRepository` normaliza a consulta e usa `remote/cep/CepRemoteDataSource`, responsável pelo transporte HTTP e leitura da resposta. `location/AndroidLocationRepository` adapta a localização de visualização para os tipos do domínio. `di` fornece banco, dispatchers e vínculos das implementações.
+`PlayerRepositoryImpl` armazena perfil e objetivos pessoais no DataStore. `LocationRepositoryImpl` adapta a localização de visualização para os tipos do domínio. `di` fornece banco, dispatchers e vínculos das implementações.
 
-`RoomWorkoutRepository` mantém resumos em `workouts` e pontos em `workout_points`. Checkpoints inserem apenas pontos novos e atualizam o resumo na mesma transação. Um lote inválido reverte a operação; excluir a atividade remove os pontos por chave estrangeira. O histórico contém resumos com `route` vazio. `observeRoute(id)` carrega o percurso exibido; `current()` recupera os pontos necessários para retomar.
+A busca de CEP segue `CepViewModel → FindCepUseCase → CepRepository → CepRepositoryImpl → CepRemoteDataSource → CepApi`. `CepApi` é uma interface Retrofit com `@GET`; `NetworkModule` configura Retrofit, OkHttp e Moshi. DTOs Moshi gerados por KSP representam o JSON aninhado da BrasilAPI e permanecem internos a dados. O mapper converte a resposta para `CepLocation`, validando coordenadas. Não há `HttpURLConnection` ou JSON manual no transporte de CEP.
 
-`AdventureRepository.recordSteps` retorna `GuardianDefeat` somente quando o lote gera novas vitórias. `RoomAdventureRepository` calcula o evento dentro da transação e o retorna após confirmar passos e recompensas. Consultar o progresso existente não gera eventos. `LevelProgression` calcula o nível a partir do XP total, com requisitos progressivos; alterar a curva não modifica o progresso persistido.
+`CepLookupError` enumera os motivos de falha sem códigos HTTP ou mensagens de apresentação. `CepLookupException` transporta o motivo e preserva a causa técnica. `CepErrorMapper`, em dados, centraliza a classificação HTTP/JSON/conexão usando constantes HTTP nomeadas. Cancelamento e exceções inesperadas são propagados. `CepErrorFormatter`, na apresentação, traduz o motivo para a mensagem da tela; uma falha inesperada recebe uma mensagem neutra. O enum é suficiente porque os motivos não possuem payloads diferentes. `CepState` continua como data class para representar campos simultâneos da tela.
+
+`WorkoutRepositoryImpl` mantém resumos em `workouts` e pontos em `workout_points`. Checkpoints inserem apenas pontos novos e atualizam o resumo na mesma transação. Um lote inválido reverte a operação; excluir a atividade remove os pontos por chave estrangeira. O histórico contém resumos com `route` vazio. `ObserveWorkoutsUseCase` fornece o histórico e `ObserveWorkoutRouteUseCase` observa o percurso selecionado. `current()` é usado pelo gerenciador de domínio para retomar a sessão.
+
+`AdventureRepository.recordSteps` retorna `GuardianDefeat` somente quando o lote gera novas vitórias. `AdventureRepositoryImpl` calcula o evento dentro da transação e o retorna após confirmar passos e recompensas. Consultar o progresso existente não gera eventos. `LevelProgression` calcula o nível a partir do XP total, com requisitos progressivos; alterar a curva não modifica o progresso persistido.
+
+`QuestKind`, `QuestRarity` e o filtro de apresentação `QuestFilter` substituem categorias textuais. Rótulos como “Combate” e “Comum” ficam na apresentação. `QuestCategoryMapper` converte códigos estáveis de armazenamento e aceita os rótulos antigos em português, incluindo diferenças de maiúsculas/minúsculas. Valores desconhecidos ou ausentes usam alternativas explícitas. Títulos, nomes, descrições e IDs continuam texto livre. Os tipos/status serializados das entidades pertencem à fronteira de persistência e são convertidos para os enums do domínio.
 
 Salvar e descartar retornam `APPLIED`, `NOT_FOUND` ou `INVALID_STATE`. As consultas condicionais impedem alterações incompatíveis e checkpoints tardios sobre resultados finalizados.
 
@@ -115,11 +142,11 @@ O arquivo continua sendo `borarpg.db`, na versão **5**, com identidade **`ea976
 
 ## Integração Android
 
-`service/StepTrackingService` mantém notificação, GPS e sensor. Converte callbacks Android em `TrackingCommand`, processados em sequência; o gerenciador de domínio decide as mudanças de sessão. O serviço não recebe DAOs nem entidades.
+`service/StepTrackingService` mantém notificação, GPS e sensor. Converte callbacks Android em `TrackingCommand`, processados em sequência; o gerenciador de domínio decide as mudanças de sessão. O serviço recebe `WorkoutSessionManager` pronto, sem receber repositórios, DAOs ou entidades. `WorkoutSessionModule` fornece o gerenciador com `@ServiceScoped`, uma instância por serviço.
 
 Uma derrota confirmada por `WorkoutSessionManager.steps` é entregue a `notification/GuardianVictoryNotifier`. O adaptador publica o aviso em um canal próprio, com ID diferente do serviço, respeitando a permissão de notificações. Lotes com várias vitórias produzem um aviso agregado. Falhas ao publicar o aviso não interrompem a atividade; eventos históricos não são reproduzidos.
 
-`controller/TrackingController` implementa `WorkoutTracker` e envia comandos ao serviço após a recuperação inicial. `state/TrackingRuntime` compartilha o estado durante a vida do processo pelo Hilt. `time/AndroidWorkoutTimeSource` fornece os relógios da plataforma, e `di/TrackingModule` conecta os contratos. O banco permite recuperar uma interrupção do processo; o serviço usa `START_NOT_STICKY`.
+`controller/TrackingController` implementa `WorkoutTracker` e envia comandos ao serviço após executar `RecoverInterruptedWorkoutsUseCase`. `state/TrackingRuntime` compartilha o estado durante a vida do processo pelo Hilt. `time/AndroidWorkoutTimeSource` fornece os relógios da plataforma, e `di/TrackingModule` conecta os contratos. O banco permite recuperar uma interrupção do processo; o serviço usa `START_NOT_STICKY`.
 
 ## Apresentação e navegação
 
@@ -149,5 +176,11 @@ Em `app/navigation`, `AppDestination` representa as abas como enum, substituindo
 - Features podem usar domínio, design system e a apresentação compartilhada de missões; outros módulos de infraestrutura e features não são permitidos.
 - O diretório de cada arquivo deve corresponder ao pacote declarado.
 - Todos os imports devem ser explícitos, sem wildcard.
+- Implementações de dados não podem ser referenciadas fora de `core:data`, inclusive pelo `app`.
+- Bibliotecas de banco, preferências e rede não podem ser usadas na apresentação ou no domínio.
+- A apresentação e os adaptadores Android consomem casos de uso; contratos de repositório ficam restritos a domínio, dados e composição DI.
+- Referências totalmente qualificadas e imports com alias também são verificados; comentários e literais não contam como código.
+
+`checkArchitectureRules` exercita cenários positivos e negativos das próprias regras antes da inspeção do projeto.
 
 A suíte JVM exercita regras, invariantes, sessão, formulário, formatação e ViewModels. Os testes instrumentados verificam persistência, migrações, abertura de banco v5 existente após a mudança de pacote, atomicidade, cascata, resgate único e composição Hilt. Os comandos estão no [README](../README.md). Precisão do GPS, bateria e execução prolongada também exigem validação em aparelho físico.

@@ -50,7 +50,7 @@ A migração Room 1→2 remove apenas o progresso simulado antigo. As migraçõe
 | `feature:backpack` | Mochila; `presentation/screen`, `components` e `viewmodel` |
 | `feature:profile` | Perfil; `presentation/screen`, `components`, `form`, `state` e `viewmodel` |
 | `feature:missions` | Apresentação compartilhada de missões; `presentation/components`, `state` e `viewmodel` |
-| `core:domain` | Kotlin/JVM puro; `model`, `repository`, `rules`, `tracking` e `error` |
+| `core:domain` | Kotlin/JVM puro; `model`, `usecase`, `repository`, `rules`, `tracking` e `error` |
 | `core:data` | `local/{database,dao,entity,migration,preferences}`, `remote/cep`, `location`, `mapper`, `repository` e `di` |
 | `core:tracking` | Integração Android em `service`, `controller`, `state`, `time`, `notification` e `di` |
 | `core:designsystem` | `theme`, `components` e `illustration`, sem regras de negócio |
@@ -58,33 +58,35 @@ A migração Room 1→2 remove apenas o progresso simulado antigo. As migraçõe
 
 As versões das dependências ficam em `gradle/libs.versions.toml`. O KSP 2.3.6 inclui a [correção de bloqueio de JARs em recompilações no Windows](https://github.com/google/ksp/releases/tag/2.3.6). Cada feature possui seu próprio build Gradle, pacote e apresentação. Jornada, Atividade e Mochila usam a feature Missões; as demais features não dependem umas das outras. Nenhum módulo `core` depende de `feature` ou de `app`.
 
-O Hilt inicializa a aplicação, a Activity e o serviço. Os ViewModels dependem de interfaces de `core:domain`; `core:data` implementa os repositórios e `core:tracking` implementa o acompanhamento Android. Os módulos Hilt conectam os contratos às implementações. Nenhuma feature depende diretamente de `core:data` ou `core:tracking`.
+O Hilt inicializa a aplicação, a Activity e o serviço. Todos os ViewModels consultam casos de uso de `core:domain`, que dependem de interfaces de repositório. `core:data` fornece classes `RepositoryImpl` internas, e `core:tracking` implementa o acompanhamento Android. Os módulos Hilt conectam os contratos às implementações; `app/di/UseCaseModule` constrói os casos de uso mantendo o domínio sem Hilt. `core:data` e `core:domain` são módulos Gradle separados, agrupados apenas pelo diretório `core`. Nenhuma feature depende diretamente de dados ou tracking.
+
+A consulta de CEP usa `FindCepUseCase → CepRepository → CepRepositoryImpl → CepRemoteDataSource → CepApi`. Retrofit, OkHttp, Moshi, DTOs e configuração de rede ficam em `core:data`; a apresentação recebe somente modelos de domínio. `CepLookupError` identifica as falhas; o mapper de dados traduz HTTP/JSON/conexão e preserva a causa. As mensagens ficam na apresentação, e cancelamento é propagado.
 
 As composables `Route` obtêm ViewModels pelo Hilt, coletam estados com o ciclo de vida e conectam ações. As `Screen` recebem estado e callbacks. Na Atividade, `ActivityScreen` envia `ActivityAction` e recebe `ActivityUiState`; `ActivityRoute` encaminha cada ação ao responsável. Os comandos de exercício usam `WorkoutAction`, processado pelo `WorkoutViewModel`, que expõe `WorkoutUiState`. Permissões e configurações do Android ficam nos adaptadores de apresentação. O estado da sessão pertence ao gerenciador, inclusive quando a tela está fechada.
 
-`WorkoutSessionManager` contém transições, relógio ativo, filtros GPS e contagem de passos. Usa contratos de repositório, relógio e gerador de ID e é testado sem Android. O serviço serializa comandos tipados e adapta callbacks de sensores. Não recebe DAOs ou entidades Room.
+`WorkoutSessionManager` contém transições, relógio ativo, filtros GPS e contagem de passos. Usa contratos de repositório, relógio e gerador de ID e é testado sem Android. O serviço recebe o gerenciador com escopo de serviço pelo Hilt, serializa comandos tipados e adapta callbacks de sensores. Não recebe repositórios, DAOs ou entidades Room.
 
 `QuestPoint` valida título e coordenadas; `MissionRules` valida metas e calcula recompensas no domínio. Os repositórios executam as regras de missão dentro das transações que também atualizam missões, progresso e inventário. `WorkoutType` contém apenas modalidades; rótulos e formatação de duração ficam em `feature:activity/presentation/formatter`.
 
 O banco continua sendo `borarpg.db`, versão 5, com identidade `ea976d3679146d8b01d46e65885c1c8c`. A organização dos pacotes mudou o FQN para `com.borarpg.data.local.database.GameDatabase` e o diretório de schemas correspondente; essa mudança não modifica tabelas nem requer nova migração. Os pontos são gravados incrementalmente na mesma transação do resumo. O histórico observa resumos; o percurso é consultado apenas para a atividade exibida. Salvar e descartar retornam resultados explícitos e usam transições condicionais.
 
-O perfil de domínio contém medidas numéricas; `ProfileForm` guarda e valida os textos da edição, incluindo vírgula decimal. Preferências anteriores são convertidas sem apagar os dados.
+O perfil de domínio contém medidas numéricas; `ProfileForm` guarda e valida os textos da edição, incluindo vírgula decimal. `QuestKind`, `QuestRarity` e `QuestFilter` representam categorias fechadas; rótulos ficam na apresentação. Mappers aceitam valores legados do Room/DataStore e gravam códigos estáveis, sem mudar o esquema ou apagar dados.
 
 Mais detalhes em [Arquitetura](docs/ARCHITECTURE.md).
 
-`checkArchitecture` verifica dependências e imports proibidos, diretórios compatíveis com os pacotes e imports explícitos de `com.borarpg`. A tarefa também é executada por `check`.
+`checkArchitecture` verifica dependências, fronteiras de camadas, referências qualificadas, imports e diretórios. Bloqueia acesso a detalhes de dados fora de `core:data` e uso de repositórios na apresentação; `checkArchitectureRules` testa as regras. A verificação também é executada por `check`.
 
 ## Validação
 
 ```powershell
-.\gradlew.bat checkArchitecture :core:domain:test :feature:activity:testDebugUnitTest :feature:profile:testDebugUnitTest :app:assembleDebug lintDebug
+.\gradlew.bat checkArchitecture :core:domain:test :core:data:testDebugUnitTest :feature:activity:testDebugUnitTest :feature:profile:testDebugUnitTest :app:assembleDebug lintDebug
 .\gradlew.bat :app:assembleDebugAndroidTest :core:data:assembleDebugAndroidTest
 ```
 
 Com um emulador ou aparelho de teste selecionado:
 
 ```powershell
-.\gradlew.bat :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest
+.\gradlew.bat :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest :core:tracking:connectedDebugAndroidTest
 ```
 
 Os testes JVM cobrem regras de RPG, invariantes dos objetivos, perfil, sensor, filtros GPS, pausas, tempo e transições da sessão. Os testes de apresentação verificam formatação, formulário, ações, estado da tela, histórico, erros e proteção contra salvamento duplicado.
