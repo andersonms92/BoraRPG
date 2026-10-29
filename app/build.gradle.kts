@@ -22,6 +22,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:domain"))
     implementation(project(":feature:journey"))
     implementation(project(":feature:activity"))
     implementation(project(":feature:backpack"))

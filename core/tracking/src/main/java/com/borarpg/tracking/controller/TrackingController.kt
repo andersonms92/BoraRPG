@@ -3,8 +3,8 @@ package com.borarpg.tracking.controller
 import android.content.Context
 import android.content.Intent
 import com.borarpg.domain.model.workout.WorkoutType
-import com.borarpg.domain.repository.WorkoutRepository
 import com.borarpg.domain.tracking.WorkoutTracker
+import com.borarpg.domain.usecase.workout.RecoverInterruptedWorkoutsUseCase
 import com.borarpg.tracking.service.StepTrackingService
 import com.borarpg.tracking.state.TrackingRuntime
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,13 +22,13 @@ class TrackingController
 constructor(
     @param:ApplicationContext private val context: Context,
     private val runtime: TrackingRuntime,
-    repository: WorkoutRepository,
+    recoverInterruptedWorkouts: RecoverInterruptedWorkoutsUseCase,
 ) : WorkoutTracker {
     override val state = runtime.state
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val recovery = scope.launch {
         try {
-            if (!state.value.active) repository.recoverInterruptedSessions()
+            if (!state.value.active) recoverInterruptedWorkouts()
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {

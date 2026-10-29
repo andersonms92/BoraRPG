@@ -91,7 +91,7 @@ val checkArchitecture =
                         } +
                         architectureModules.map { module ->
                             "com.borarpg" + module.path.replace(':', '.') to module.path
-                        })
+                        } + listOf("com.borarpg.domain" to ":core:domain"))
                     .distinct()
                     .sortedByDescending { it.first.length }
 

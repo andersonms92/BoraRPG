@@ -24,15 +24,10 @@ import com.borarpg.domain.model.location.GeoLocation
 import com.borarpg.domain.model.workout.TrackingPhase
 import com.borarpg.domain.model.workout.TrackingState
 import com.borarpg.domain.model.workout.WorkoutType
-import com.borarpg.domain.repository.AdventureRepository
-import com.borarpg.domain.repository.PlayerRepository
-import com.borarpg.domain.repository.WorkoutRepository
 import com.borarpg.domain.rules.workout.WorkoutSessionManager
-import com.borarpg.domain.tracking.WorkoutTimeSource
 import com.borarpg.tracking.notification.GuardianVictoryNotifier
 import com.borarpg.tracking.state.TrackingRuntime
 import dagger.hilt.android.AndroidEntryPoint
-import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -49,17 +44,9 @@ import kotlinx.coroutines.launch
 class StepTrackingService : Service(), SensorEventListener, LocationListener {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val commands = Channel<TrackingCommand>(Channel.UNLIMITED)
-    @Inject lateinit var repository: WorkoutRepository
-    @Inject lateinit var playerRepository: PlayerRepository
-    @Inject lateinit var adventureRepository: AdventureRepository
-    @Inject lateinit var time: WorkoutTimeSource
+    @Inject lateinit var manager: WorkoutSessionManager
     @Inject lateinit var runtime: TrackingRuntime
     @Inject lateinit var victoryNotifier: GuardianVictoryNotifier
-    private val manager by lazy {
-        WorkoutSessionManager(repository, playerRepository, adventureRepository, time) {
-            UUID.randomUUID().toString()
-        }
-    }
     private val sensors by lazy { getSystemService(SENSOR_SERVICE) as SensorManager }
     private val locations by lazy { getSystemService(LOCATION_SERVICE) as LocationManager }
     private var registered = false

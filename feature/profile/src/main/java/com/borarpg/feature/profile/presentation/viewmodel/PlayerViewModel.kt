@@ -3,8 +3,9 @@ package com.borarpg.feature.profile.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.borarpg.domain.model.hero.Hero
-import com.borarpg.domain.repository.AdventureRepository
-import com.borarpg.domain.repository.PlayerRepository
+import com.borarpg.domain.usecase.hero.ObserveHeroUseCase
+import com.borarpg.domain.usecase.player.ObservePlayerProfileUseCase
+import com.borarpg.domain.usecase.player.SavePlayerProfileUseCase
 import com.borarpg.feature.profile.presentation.form.ProfileForm
 import com.borarpg.feature.profile.presentation.state.ProfileState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,9 +22,12 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class PlayerViewModel
 @Inject
-constructor(private val repository: PlayerRepository, adventure: AdventureRepository) :
-    ViewModel() {
-    val hero = adventure.hero.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Hero())
+constructor(
+    observeHero: ObserveHeroUseCase,
+    observePlayerProfile: ObservePlayerProfileUseCase,
+    private val savePlayerProfile: SavePlayerProfileUseCase,
+) : ViewModel() {
+    val hero = observeHero().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Hero())
     private val _profile = MutableStateFlow(ProfileState())
     val profile = _profile.asStateFlow()
 
@@ -32,7 +36,7 @@ constructor(private val repository: PlayerRepository, adventure: AdventureReposi
             try {
                 _profile.value =
                     ProfileState(
-                        draft = ProfileForm.from(repository.profile.first()),
+                        draft = ProfileForm.from(observePlayerProfile().first()),
                         loading = false,
                     )
             } catch (e: CancellationException) {
@@ -59,7 +63,7 @@ constructor(private val repository: PlayerRepository, adventure: AdventureReposi
         viewModelScope.launch {
             _profile.update { it.copy(saving = true) }
             try {
-                repository.save(draft.toDomain())
+                savePlayerProfile(draft.toDomain())
                 _profile.update {
                     it.copy(saving = false, message = "Perfil salvo neste aparelho.")
                 }

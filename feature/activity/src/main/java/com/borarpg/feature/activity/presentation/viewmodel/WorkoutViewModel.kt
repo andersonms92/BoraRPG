@@ -7,9 +7,12 @@ import com.borarpg.domain.model.workout.WorkoutMutation
 import com.borarpg.domain.model.workout.WorkoutSession
 import com.borarpg.domain.model.workout.WorkoutStatus
 import com.borarpg.domain.model.workout.WorkoutType
-import com.borarpg.domain.repository.PlayerRepository
-import com.borarpg.domain.repository.WorkoutRepository
 import com.borarpg.domain.tracking.WorkoutTracker
+import com.borarpg.domain.usecase.player.ObservePlayerProfileUseCase
+import com.borarpg.domain.usecase.workout.DiscardWorkoutResultUseCase
+import com.borarpg.domain.usecase.workout.ObserveWorkoutRouteUseCase
+import com.borarpg.domain.usecase.workout.ObserveWorkoutsUseCase
+import com.borarpg.domain.usecase.workout.SaveWorkoutResultUseCase
 import com.borarpg.feature.activity.presentation.action.WorkoutAction
 import com.borarpg.feature.activity.presentation.state.WorkoutUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -57,15 +60,18 @@ private data class WorkoutRoute(val id: String?, val points: List<RoutePoint> = 
 class WorkoutViewModel
 @Inject
 constructor(
-    private val repository: WorkoutRepository,
+    observeWorkouts: ObserveWorkoutsUseCase,
+    private val observeWorkoutRoute: ObserveWorkoutRouteUseCase,
+    private val saveWorkoutResult: SaveWorkoutResultUseCase,
+    private val discardWorkoutResult: DiscardWorkoutResultUseCase,
     private val tracker: WorkoutTracker,
-    player: PlayerRepository,
+    observePlayerProfile: ObservePlayerProfileUseCase,
 ) : ViewModel() {
     private val controls = MutableStateFlow(WorkoutPresentationState())
     private val retry = MutableStateFlow(0)
-    private val profileWeight = player.profile.map { it.weightKg }.catch { emit(null) }
+    private val profileWeight = observePlayerProfile().map { it.weightKg }.catch { emit(null) }
     private val records = retry.flatMapLatest {
-        repository.workouts
+        observeWorkouts()
             .map { WorkoutRecords(it, loading = false) }
             .catch {
                 emit(
@@ -93,8 +99,7 @@ constructor(
             .flatMapLatest { (id, _) ->
                 if (id == null) flowOf(WorkoutRoute(null))
                 else
-                    repository
-                        .observeRoute(id)
+                    observeWorkoutRoute(id)
                         .map { WorkoutRoute(id, it) }
                         .onStart { emit(WorkoutRoute(id)) }
                         .catch {
@@ -164,8 +169,8 @@ constructor(
                 )
                     tracker.cancel()
             }
-            WorkoutAction.Save -> mutate { repository.saveResult(it) }
-            WorkoutAction.Discard -> mutate { repository.discard(it) }
+            WorkoutAction.Save -> mutate { saveWorkoutResult(it) }
+            WorkoutAction.Discard -> mutate { discardWorkoutResult(it) }
         }
     }
 

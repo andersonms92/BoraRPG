@@ -2,12 +2,13 @@ package com.borarpg.feature.activity.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.borarpg.domain.model.mission.QuestKind
 import com.borarpg.domain.model.mission.QuestPoint
-import com.borarpg.domain.repository.LocationRepository
-import com.borarpg.domain.repository.PlayerRepository
+import com.borarpg.domain.usecase.location.ObserveLocationsUseCase
+import com.borarpg.domain.usecase.quest.CreateQuestUseCase
+import com.borarpg.domain.usecase.quest.DeleteQuestUseCase
+import com.borarpg.domain.usecase.quest.ObserveSavedQuestsUseCase
+import com.borarpg.domain.usecase.quest.SaveQuestUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,13 +21,18 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class PlacesViewModel
 @Inject
-constructor(private val repository: PlayerRepository, locationRepository: LocationRepository) :
-    ViewModel() {
-    val locations = locationRepository.updates()
+constructor(
+    observeSavedQuests: ObserveSavedQuestsUseCase,
+    observeLocations: ObserveLocationsUseCase,
+    private val createQuestUseCase: CreateQuestUseCase,
+    private val saveQuest: SaveQuestUseCase,
+    private val deleteSavedQuest: DeleteQuestUseCase,
+) : ViewModel() {
+    val locations = observeLocations()
     private val mutableMessage = MutableStateFlow<String?>(null)
     val message = mutableMessage.asStateFlow()
     val quests =
-        repository.quests
+        observeSavedQuests()
             .catch {
                 mutableMessage.value = "Não foi possível carregar os locais."
                 emit(emptyList())
@@ -34,14 +40,12 @@ constructor(private val repository: PlayerRepository, locationRepository: Locati
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun createQuest(title: String, latitude: Double, longitude: Double) = update {
-        repository.addQuest(
-            QuestPoint(UUID.randomUUID().toString(), title, latitude, longitude, QuestKind.EXPLORATION)
-        )
+        createQuestUseCase(title, latitude, longitude)
     }
 
-    fun addQuest(quest: QuestPoint) = update { repository.addQuest(quest) }
+    fun addQuest(quest: QuestPoint) = update { saveQuest(quest) }
 
-    fun deleteQuest(id: String) = update { repository.deleteQuest(id) }
+    fun deleteQuest(id: String) = update { deleteSavedQuest(id) }
 
     private fun update(operation: suspend () -> Unit) {
         viewModelScope.launch {

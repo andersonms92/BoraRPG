@@ -13,6 +13,11 @@ import com.borarpg.domain.model.workout.WorkoutType
 import com.borarpg.domain.repository.PlayerRepository
 import com.borarpg.domain.repository.WorkoutRepository
 import com.borarpg.domain.tracking.WorkoutTracker
+import com.borarpg.domain.usecase.player.ObservePlayerProfileUseCase
+import com.borarpg.domain.usecase.workout.DiscardWorkoutResultUseCase
+import com.borarpg.domain.usecase.workout.ObserveWorkoutRouteUseCase
+import com.borarpg.domain.usecase.workout.ObserveWorkoutsUseCase
+import com.borarpg.domain.usecase.workout.SaveWorkoutResultUseCase
 import com.borarpg.feature.activity.presentation.action.WorkoutAction
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -141,7 +146,14 @@ class WorkoutViewModelTest {
         WorkoutSession(id, WorkoutType.RUN, 1000, 30_000, 100.0, 65.0, status, emptyList())
 
     private fun model() =
-        WorkoutViewModel(repository, tracker, player).also { vm ->
+        WorkoutViewModel(
+            ObserveWorkoutsUseCase(repository),
+            ObserveWorkoutRouteUseCase(repository),
+            SaveWorkoutResultUseCase(repository),
+            DiscardWorkoutResultUseCase(repository),
+            tracker,
+            ObservePlayerProfileUseCase(player),
+        ).also { vm ->
             viewModels.put("workout", vm)
             observations.launch { vm.state.collect() }
         }

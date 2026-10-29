@@ -2,8 +2,8 @@ package com.borarpg.feature.journey.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.borarpg.domain.repository.AdventureRepository
-import com.borarpg.domain.repository.PlayerRepository
+import com.borarpg.domain.usecase.hero.ObserveHeroUseCase
+import com.borarpg.domain.usecase.player.ObservePlayerProfileUseCase
 import com.borarpg.feature.journey.presentation.state.AdventureState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -15,13 +15,14 @@ import kotlinx.coroutines.flow.stateIn
 @HiltViewModel
 class AdventureViewModel
 @Inject
-constructor(repository: AdventureRepository, player: PlayerRepository) : ViewModel() {
+constructor(observeHero: ObserveHeroUseCase, observePlayerProfile: ObservePlayerProfileUseCase) :
+    ViewModel() {
     val name =
-        player.profile
+        observePlayerProfile()
             .map { it.name }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
     val state =
-        repository.hero
+        observeHero()
             .map { AdventureState(hero = it, loading = false) }
             .catch {
                 emit(

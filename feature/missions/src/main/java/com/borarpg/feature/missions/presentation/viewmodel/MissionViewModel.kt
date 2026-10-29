@@ -3,7 +3,10 @@ package com.borarpg.feature.missions.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.borarpg.domain.model.mission.QuestPoint
-import com.borarpg.domain.repository.MissionRepository
+import com.borarpg.domain.usecase.mission.AcceptMissionUseCase
+import com.borarpg.domain.usecase.mission.CancelMissionUseCase
+import com.borarpg.domain.usecase.mission.ClaimMissionRewardsUseCase
+import com.borarpg.domain.usecase.mission.ObserveMissionsUseCase
 import com.borarpg.feature.missions.presentation.state.MissionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -18,31 +21,39 @@ import kotlinx.coroutines.launch
 private data class MissionAction(val busy: Boolean = false, val message: String? = null)
 
 @HiltViewModel
-class MissionViewModel @Inject constructor(private val repository: MissionRepository) :
-    ViewModel() {
+class MissionViewModel
+@Inject
+constructor(
+    observeMissions: ObserveMissionsUseCase,
+    private val acceptMission: AcceptMissionUseCase,
+    private val claimMissionRewards: ClaimMissionRewardsUseCase,
+    private val cancelMission: CancelMissionUseCase,
+) : ViewModel() {
     private val action = MutableStateFlow(MissionAction())
     val state =
-        combine(repository.active, repository.inventory, repository.claimed, action) {
-                active,
-                inventory,
-                claimed,
-                status ->
-                MissionState(active, inventory, claimed, status.busy, status.message)
+        combine(observeMissions(), action) { missions, status ->
+                MissionState(
+                    missions.active,
+                    missions.inventory,
+                    missions.claimed,
+                    status.busy,
+                    status.message,
+                )
             }
             .catch { emit(MissionState(message = "Não foi possível carregar as missões.")) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MissionState())
 
     fun accept(quest: QuestPoint) =
         runAction("Missão aceita. Inicie uma atividade na aba Atividade para avançar.") {
-            repository.accept(quest)
+            acceptMission(quest)
         }
 
     fun claim() =
         runAction("Recompensas recebidas! XP, ouro e item adicionados ao personagem.") {
-            repository.claim()
+            claimMissionRewards()
         }
 
-    fun cancel() = runAction("Missão cancelada.") { repository.cancel() }
+    fun cancel() = runAction("Missão cancelada.") { cancelMission() }
 
     private fun runAction(message: String, operation: suspend () -> Unit) {
         if (action.value.busy) return

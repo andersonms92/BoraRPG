@@ -4,9 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.borarpg.domain.error.CepLookupException
 import com.borarpg.domain.model.location.CepLocation
-import com.borarpg.domain.repository.CepRepository
-import com.borarpg.domain.rules.location.normalizeCep
-import com.borarpg.domain.rules.mission.QuestGenerator
+import com.borarpg.domain.usecase.location.FindCepUseCase
+import com.borarpg.domain.usecase.quest.GenerateObjectivesUseCase
 import com.borarpg.feature.activity.presentation.formatter.message
 import com.borarpg.feature.activity.presentation.state.CepState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +18,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class CepViewModel @Inject constructor(private val repository: CepRepository) : ViewModel() {
+class CepViewModel
+@Inject
+constructor(
+    private val findCep: FindCepUseCase,
+    private val generateObjectives: GenerateObjectivesUseCase,
+) : ViewModel() {
 
     private val mutable = MutableStateFlow(CepState())
     val state = mutable.asStateFlow()
@@ -32,14 +36,10 @@ class CepViewModel @Inject constructor(private val repository: CepRepository) : 
     fun search() {
         if (mutable.value.loading) return
         val input = mutable.value.input
-        if (normalizeCep(input) == null) {
-            mutable.update { it.copy(error = "Digite um CEP válido, como 01310-100.") }
-            return
-        }
         request = viewModelScope.launch {
             mutable.update { it.copy(loading = true, error = null) }
             try {
-                val result = repository.find(input)
+                val result = findCep(input)
 
                 mutable.update {
                     it.copy(
@@ -50,7 +50,7 @@ class CepViewModel @Inject constructor(private val repository: CepRepository) : 
                         objectivesMessage = null,
                     )
                 }
-                generateObjectives(result)
+                updateObjectives(result)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: CepLookupException) {
@@ -78,11 +78,11 @@ class CepViewModel @Inject constructor(private val repository: CepRepository) : 
 
     fun regenerateObjectives() {
         val target = mutable.value.target ?: return
-        generateObjectives(target)
+        updateObjectives(target)
     }
 
-    private fun generateObjectives(target: CepLocation) {
-        val objectives = QuestGenerator.generate(target)
+    private fun updateObjectives(target: CepLocation) {
+        val objectives = generateObjectives(target)
         mutable.update {
             it.copy(
                 objectives = objectives,

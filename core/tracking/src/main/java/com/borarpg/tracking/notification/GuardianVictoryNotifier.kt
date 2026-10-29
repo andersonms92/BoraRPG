@@ -15,7 +15,7 @@ import javax.inject.Inject
 
 class GuardianVictoryNotifier
 @Inject
-constructor(@ApplicationContext private val context: Context) {
+constructor(@param:ApplicationContext private val context: Context) {
     fun notify(defeat: GuardianDefeat) {
         if (defeat.victories <= 0 || defeat.totalVictories < defeat.victories) return
         try {
